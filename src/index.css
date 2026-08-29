@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* Permite cambiar a modo oscuro agregando la clase .dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* 
+   * Colores de marca (fondos suaves de pills y barras)
+   */
+  --color-blood-soft: #fee2e2;
+  --color-ember-soft: #ffedd5;
+  --color-gold-soft: #fef3c7;
+
+  /* 
+   * Acentos (texto, bordes e iconos sobre los fondos suaves)
+   */
+  --color-blood-accent: #dc2626;
+  --color-ember-accent: #ea580c;
+  --color-gold-accent: #d97706;
+
+  /* 
+   * Colores base de la interfaz (grises, blanco, negro)
+   */
+  --color-app-bg: #fafafa;
+  --color-app-surface: #ffffff;
+  --color-app-text: #18181b;
+  --color-app-muted: #71717a;
+  --color-app-border: #e4e4e7;
+
+  /* 
+   * RADIUS
+   */
+  --radius-card: 1rem;
+  --radius-pill: 9999px;
+  --radius-button: 0.75rem;
+
+  /* 
+   * SHADOWS
+   */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.12);
+
+  /* 
+   * INSET SHADOWS
+   */
+  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+
+  /* 
+   * EASING
+   */
+  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 
+   * ANIMATION
+   */
+  --animate-curse-pulse: curse-pulse 0.4s ease-out forwards;
+}
+
+/* 
+ * Modo oscuro
+ * Redefinir las variables aquí hace que se cambien solas
+ */
+.dark {
+  /* Base de la interfaz en negro y gris */
+  --color-app-bg: #0a0a0a;
+  --color-app-surface: #18181b;
+  --color-app-text: #fafafa;
+  --color-app-muted: #a1a1aa;
+  --color-app-border: #27272a;
+
+  /* Fondos suaves oscurecidos, para que no encandilen */
+  --color-blood-soft: #450a0a;
+  --color-ember-soft: #431407;
+  --color-gold-soft: #422006;
+
+  /* Acentos aclarados, para que contrasten sobre fondo oscuro */
+  --color-blood-accent: #fca5a5;
+  --color-ember-accent: #fdba74;
+  --color-gold-accent: #fcd34d;
+
+  /* Sombras más fuertes para que se vean sobre negro */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.8);
+  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Animación para cuando cae una maldición */
+@keyframes curse-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
