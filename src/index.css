@@ -6,26 +6,29 @@
 @theme {
   /* 
    * Colores de marca (fondos suaves de pills y barras)
+   * Toda la paleta es oscura y turbia: la subasta pasa de noche
    */
-  --color-blood-soft: #fee2e2;
-  --color-ember-soft: #ffedd5;
-  --color-gold-soft: #fef3c7;
+  --color-blood-soft: #2a0e0e;
+  --color-ember-soft: #2b1508;
+  --color-gold-soft: #2a2208;
 
   /* 
    * Acentos (texto, bordes e iconos sobre los fondos suaves)
+   * Van claros para que contrasten sobre los fondos oscuros
    */
-  --color-blood-accent: #dc2626;
-  --color-ember-accent: #ea580c;
-  --color-gold-accent: #d97706;
+  --color-blood-accent: #ef4444;
+  --color-ember-accent: #f97316;
+  --color-gold-accent: #eab308;
 
   /* 
-   * Colores base de la interfaz (grises, blanco, negro)
+   * Colores base de la interfaz
+   * El tema "claro" tambien es oscuro, solo que un poco menos
    */
-  --color-app-bg: #fafafa;
-  --color-app-surface: #ffffff;
-  --color-app-text: #18181b;
-  --color-app-muted: #71717a;
-  --color-app-border: #e4e4e7;
+  --color-app-bg: #18181b;
+  --color-app-surface: #27272a;
+  --color-app-text: #fafafa;
+  --color-app-muted: #a1a1aa;
+  --color-app-border: #3f3f46;
 
   /* 
    * RADIUS
@@ -36,14 +39,15 @@
 
   /* 
    * SHADOWS
+   * Fuertes, porque sobre fondo oscuro una sombra suave no se ve
    */
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.85);
 
   /* 
    * INSET SHADOWS
    */
-  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
 
   /* 
    * EASING
@@ -57,38 +61,34 @@
 }
 
 /* 
- * Modo oscuro
- * Redefinir las variables aquí hace que se cambien solas
+ * Modo oscuro: el negro total
+ * Redefinir las variables aqui hace que se cambien solas
  */
 .dark {
-  /* Base de la interfaz en negro y gris */
-  --color-app-bg: #0a0a0a;
-  --color-app-surface: #18181b;
-  --color-app-text: #fafafa;
-  --color-app-muted: #a1a1aa;
+  --color-app-bg: #09090b;
+  --color-app-surface: #141416;
+  --color-app-text: #e4e4e7;
+  --color-app-muted: #71717a;
   --color-app-border: #27272a;
 
-  /* Fondos suaves oscurecidos, para que no encandilen */
-  --color-blood-soft: #450a0a;
-  --color-ember-soft: #431407;
-  --color-gold-soft: #422006;
+  --color-blood-soft: #1a0808;
+  --color-ember-soft: #1a0d05;
+  --color-gold-soft: #1a1505;
 
-  /* Acentos aclarados, para que contrasten sobre fondo oscuro */
-  --color-blood-accent: #fca5a5;
-  --color-ember-accent: #fdba74;
-  --color-gold-accent: #fcd34d;
+  --color-blood-accent: #dc2626;
+  --color-ember-accent: #ea580c;
+  --color-gold-accent: #ca8a04;
 
-  /* Sombras más fuertes para que se vean sobre negro */
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
-  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.8);
-  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.9);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 1);
+  --inset-shadow-pressed: inset 0 2px 4px 0 rgba(0, 0, 0, 0.7);
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* Animación para cuando cae una maldición */
+/* Animacion para cuando cae una maldicion */
 @keyframes curse-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.05); opacity: 0.7; }

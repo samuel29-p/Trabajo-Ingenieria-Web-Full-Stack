@@ -10,7 +10,7 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
   const [data, setData] = useState(() => {//useState crea una variable especial que, cuando cambia, hace que React vuelva a dibujar la pantalla sola. Te devuelve dos cosas:
     //data: el valor actual (tu objeto con usuarios, casas, subastas)
     //setData: la única forma permitida de cambiarlo
-    const guardado = localStorage.getItem(STORAGE_KEY);//Es una cajita del navegador que sobrevive a recargas y a cerrar la pestaña. Tiene una limitación: solo guarda texto.
+    const guardado = localStorage.getItem(STORAGE_KEY);//Es una cajita del navegador que sobrevive a recargas y a cerrar la pestaña. Solo guarda texto.
     if (guardado) {
       return JSON.parse(guardado);//convierte el texto de vuelta en objeto
     }
@@ -33,10 +33,13 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));//convierte el objeto en texto
   }, [data]);
 
-  //lo mismo pero para la sesión: así al recargar la página sigue conectado
+  //lo mismo pero para la sesión, así al recargar la página sigue conectado
   useEffect(() => {
     localStorage.setItem(USER_KEY, JSON.stringify(currentUserId));
   }, [currentUserId]);
+
+  //cruza el id de la sesión con el arreglo de usuarios y devuelve el usuario completo
+  const currentUser = data.users.find((u) => u.id === currentUserId) || null;
 
   //busca en el arreglo de usuarios uno con ese email y contraseña
   //.find() recorre y devuelve el PRIMERO que cumpla, o undefined si ninguno cumple
@@ -67,7 +70,7 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
     password: password,
     reputation: 100,
     joinDate: new Date().toISOString(),
-    avatarUrl: "https://i.pravatar.cc/150?u=" + (data.users.length + 1),
+    avatarUrl: "pfp.jpeg" + (data.users.length + 1),
   };
   setData({ ...data, users: [...data.users, newUser] });
   return true;

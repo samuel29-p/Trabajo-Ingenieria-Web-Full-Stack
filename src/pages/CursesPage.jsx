@@ -1,17 +1,19 @@
 import NavBar from "../components/NavBar.jsx";
 import { CURSE_LIST } from "../data/Curses.js";
 
+//se llama CursesPage y no Curses para no confundirla con el catalogo CURSES
 function CursesPage() {
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
       <NavBar />
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-app-text">Maldiciones</h1>
+        <h1 className="text-3xl font-bold text-app-text">Curses</h1>
         <p className="text-app-muted mb-6">
-          Las 8 maldiciones que puede cargar un objeto embrujado
+          The 8 curses a haunted object can carry
         </p>
 
-        {/* CURSE_LIST ya es un arreglo, así que se recorre directo */}
+        {/* CURSE_LIST ya es un arreglo, se recorre directo */}
+        {/* esta pagina no usa el contexto: el catalogo nunca cambia */}
         {CURSE_LIST.map((curse) => (
           <div
             key={curse.code}
@@ -19,11 +21,11 @@ function CursesPage() {
           >
             <p className="text-app-text font-bold">{curse.name}</p>
             <p className="text-app-muted">{curse.description}</p>
-            <p className="text-app-muted">
-              {/* los de reputación son permanentes, los demás duran unas horas */}
+            <p className="text-app-muted text-sm">
+              {/* los de reputacion son permanentes, los demas duran unas horas */}
               {curse.effect === "reputation"
-                ? "Efecto permanente"
-                : "Dura " + curse.durationHours + " horas"}
+                ? "Permanent effect"
+                : "Lasts " + curse.durationHours + " hours"}
             </p>
           </div>
         ))}
