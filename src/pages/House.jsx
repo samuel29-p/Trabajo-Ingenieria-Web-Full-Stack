@@ -4,7 +4,7 @@ import { AppContext } from "../context/AppContext.jsx";
 import { useParams, Link } from "react-router-dom";
 
 function House() {
-  const { data, currentUser, joinHouse } = useContext(AppContext);
+  const { data, currentUser, joinHouse, getHouseRankings, createAuction } = useContext(AppContext);
   const { id } = useParams(); //el id que viene en la direccion, como TEXTO
 
   //los useState van siempre arriba, nunca dentro de un map o un if
@@ -100,6 +100,38 @@ function House() {
           );
         })}
 
+        {currentUser && alreadyMember && (<>
+        <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Cursed objects</h2>
+
+        <Link to={"/house/" + casa.id + "/new-object"}
+        className="inline-block bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button mb-4">
+        + New object
+        </Link>
+
+       {data.objects.filter((o) => o.hauntHouseId === casa.id).map((obj) => {
+        //miro si ese objeto ya esta en una subasta abierta
+        const enSubasta = data.auctions.find((a) => a.cursedObjectId === obj.id && a.status === "open");
+        return (
+          <div key={obj.id}
+            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center">
+            <div>
+              <p className="text-app-text font-bold">{obj.name}</p>
+              <p className="text-app-muted text-sm">
+                {obj.minBid} to {obj.maxBid}, {obj.durationDays} days
+              </p>
+            </div>
+            {!enSubasta && (
+              <button onClick={() => createAuction(obj.id)}
+                className="bg-gold-accent hover:bg-yellow-600 text-black font-semibold px-3 py-2 rounded-button">
+                Auction it
+              </button>
+            )}
+          </div>
+          );
+          })}
+          </>
+          )}
+
         <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Auctions</h2>
 
         {/* mismo patron que los miembros: recorro y cruzo por id */}
@@ -120,6 +152,26 @@ function House() {
             </Link>
           );
         })}
+        <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Rankings</h2>
+
+        {(() => {const r = getHouseRankings(casa.id);
+        if (!r) return null;
+        const tabla = [
+       { titulo: "Worst Bidder", lista: r.worstBidder.slice(0, 3), campo: (s) => "avg " + s.avgBid.toFixed(1) },
+       { titulo: "Total Cursed", lista: r.totalCursed.slice(0, 3), campo: (s) => s.curses + " curses" },
+       { titulo: "Free Spirit", lista: r.freeSpirits.slice(0, 3), campo: () => "never won" },
+       { titulo: "Betting Prophet", lista: r.bettingProphet.slice(0, 3), campo: (s) => s.profit + " rep" },
+       ];
+       return tabla.map((t) => (<div key={t.titulo} className="bg-app-surface border border-app-border rounded-card p-4 mb-3">
+      <p className="text-ember-accent font-bold mb-2">{t.titulo}</p>
+      {t.lista.map((s) => (<div key={s.userId} className="flex justify-between text-app-text">
+          <span>{s.username}</span>
+          <span className="text-app-muted">{t.campo(s)}</span>
+        </div>
+      ))}
+      </div>
+      ));
+      })()}
       </main>
     </div>
   );

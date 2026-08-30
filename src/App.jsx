@@ -10,6 +10,7 @@ import Auction from "./pages/Auction.jsx";
 import Profile from "./pages/Profile.jsx";
 import CursesPage from "./pages/CursesPage.jsx";
 import CreateHouse from "./pages/CreateHouse.jsx";
+import CreateObject from "./pages/CreateObject.jsx";
 
 /* Existen 2 tipos de aplicativos web
 1. los spa : Single page application.  **ESTE ES EL QUE USAMOS**
@@ -30,6 +31,7 @@ function App() {
         <Route path="/house/:id" element={<House />} />
         <Route path="/auction/:id" element={<Auction />} />
         <Route path="/create-house" element={<CreateHouse />} />
+        <Route path="/house/:id/new-object" element={<CreateObject />} />
       </Routes>
     </div>
   );

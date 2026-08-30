@@ -359,11 +359,18 @@ function createAuction(cursedObjectId) {
     }
     return { ...b, status: "lost", payout: 0 };
   });
+    //los que empataron quedan como poltergeist en la casa
+    const newHouses = data.houses.map((h) => {
+    if (h.id !== auction.hauntHouseId) return h;
+    return {...h, members: h.members.map((m) => punished.includes(m.userId) ? { ...m, role: "Poltergeist" } : m),
+      };
+    });
 
-  //un solo setData con los cuatro arreglos, si fueran cuatro seguidos
+  //un solo setData con los cinco arreglos, si fueran cinco seguidos
   //los ultimos leerian el data viejo y se pisarian entre si
   setData({
     ...data,
+    houses : newHouses,
     auctions: newAuctions,
     users: newUsers,
     curseLog: newCurseLog,
@@ -423,6 +430,66 @@ function placeBet(auctionId, predictedAlias, amount) {
 
   setData({ ...data, bets: [...data.bets, newBet], users: newUsers });
   return null;
+  }
+
+  //requisito 23, los cuatro rankings de una casa
+function getHouseRankings(houseId) {
+  const house = data.houses.find((h) => h.id === houseId);
+  if (!house) return null;
+
+  //las subastas de esta casa y sus ids, para filtrar todo lo demas
+  const houseAuctions = data.auctions.filter((a) => a.hauntHouseId === houseId);
+  const auctionIds = houseAuctions.map((a) => a.id);
+
+  //recorro los miembros y por cada uno calculo sus cuatro numeros
+  const stats = house.members.map((m) => {
+    const user = data.users.find((u) => u.id === m.userId);
+
+    //cuantas veces gano en esta casa
+    const wins = houseAuctions.filter((a) => a.winnerId === m.userId).length;
+
+    //cuantas maldiciones le han caido aqui
+    const curses = data.curseLog.filter(
+      (c) => c.userId === m.userId && auctionIds.includes(c.auctionId)
+    ).length;
+
+    //cuanto ha ganado apostando, sumando los payouts
+    //reduce recorre y va acumulando en un solo valor
+    const profit = data.bets
+      .filter((b) => b.bettorId === m.userId && auctionIds.includes(b.auctionId))
+      .reduce((suma, b) => suma + b.payout - b.amount, 0);
+
+    //la puja promedio, para el peor pujador
+    const misPujas = data.bids.filter(
+      (b) => b.userId === m.userId && auctionIds.includes(b.auctionId)
+    );
+    const totalPujado = misPujas.reduce((suma, b) => suma + b.amount, 0);
+    const avgBid = misPujas.length > 0 ? totalPujado / misPujas.length : 0;
+
+    return {
+      userId: m.userId,
+      username: user?.username,
+      reputation: user?.reputation,
+      wins: wins,
+      curses: curses,
+      profit: profit,
+      avgBid: avgBid,
+      bidCount: misPujas.length,
+    };
+  });
+
+  //sort ordena el arreglo. La resta decide el orden: negativo va primero
+  //slice() saca una copia, porque sort modifica el arreglo original
+  return {
+    //peor pujador: el que puja mas alto en promedio, o sea el que peor juega
+    worstBidder: stats.slice().filter((s) => s.bidCount > 0).sort((a, b) => b.avgBid - a.avgBid),
+    //el mas maldito
+    totalCursed: stats.slice().sort((a, b) => b.curses - a.curses),
+    //espiritu libre: los que nunca han ganado
+    freeSpirits: stats.filter((s) => s.wins === 0),
+    //profeta de apuestas: el que mas ha ganado apostando
+    bettingProphet: stats.slice().sort((a, b) => b.profit - a.profit),
+  };
 }
 
  const value = {
@@ -445,6 +512,7 @@ function placeBet(auctionId, predictedAlias, amount) {
   getDuplicateBidders,
   closeAuction,
   placeBet,
+  getHouseRankings,
 };//value es el contenido de la caja que se comparte con los hijos
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;//AppContext.Provider es el envoltorio que le dice a React: "¡Aquí está la caja con el contenido!"
