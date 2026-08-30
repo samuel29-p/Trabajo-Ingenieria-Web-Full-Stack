@@ -4,7 +4,7 @@ import { AppContext } from "../context/AppContext.jsx";
 import { Link } from "react-router-dom"; //Link sirve para navegar sin recargar la pagina
 
 function Home() {
-  const { data } = useContext(AppContext); //saco los datos del contexto
+  const { data, currentUser } = useContext(AppContext); //saco los datos del contexto
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
@@ -12,6 +12,16 @@ function Home() {
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-app-text">PhantomBids</h1>
         <p className="text-app-muted mb-6">Haunt houses</p>
+
+        {/* el boton de crear casa solo se ve si hay sesion abierta */}
+        {currentUser && (
+          <Link
+            to="/create-house"
+            className="inline-block bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button mb-6"
+          >
+            + New house
+          </Link>
+        )}
 
         {/* Las llaves { } dentro del JSX significan "aqui adentro esto es JavaScript, no texto" */}
         {/* .map() recorre el arreglo y devuelve otro arreglo, transformando cada elemento */}

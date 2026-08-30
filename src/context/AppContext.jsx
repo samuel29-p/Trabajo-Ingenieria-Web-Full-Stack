@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from "react";
 import { SEED_DATA } from "../data/seedData.js";
+import { CURSES } from "../data/Curses.js";
 
 export const AppContext = createContext();//Esto crea la caja vacía
 
@@ -70,7 +71,7 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
     password: password,
     reputation: 100,
     joinDate: new Date().toISOString(),
-    avatarUrl: "pfp.jpeg" + (data.users.length + 1),
+    avatarUrl: "/images/pfp.jpeg",
   };
   setData({ ...data, users: [...data.users, newUser] });
   return true;
@@ -120,8 +121,259 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
   
   return adjectives[position] + "_" + String(identifier).padStart(2, "0");//padStart dice "asegúrate de que tenga 2 caracteres, y si le falta, rellena por la izquierda con ceros"
   //String convierte identifier a texto
+  }
+
+ //requisitos 10, 11 y 14: registrar una puja
+ function placeBid(auctionId, amount) {
+  //nadie puede pujar sin sesion iniciada
+  if (!currentUserId) return "Log in to bid";
+
+  const auction = data.auctions.find((a) => a.id === auctionId);
+  if (!auction) return "Auction not found";
+
+  //solo se puede pujar en subastas abiertas
+  if (auction.status !== "open") return "This auction is closed";
+
+  //hay que ser miembro de la casa donde esta la subasta
+  const house = data.houses.find((h) => h.id === auction.hauntHouseId);
+  const isMember = house.members.find((m) => m.userId === currentUserId);
+  if (!isMember) return "You must join the house first";
+
+  //requisito 10: un usuario puja UNA sola vez por subasta
+  const alreadyBid = data.bids.find(
+    (b) => b.auctionId === auctionId && b.userId === currentUserId
+  );
+  if (alreadyBid) return "You already placed a bid in this auction";
+
+  //requisito 11: entero dentro del rango del objeto
+  const object = data.objects.find((o) => o.id === auction.cursedObjectId);
+  const monto = Number(amount); //lo que viene del input es texto
+  if (!Number.isInteger(monto)) return "The bid must be a whole number";
+  if (monto < object.minBid || monto > object.maxBid) {
+    return "The bid must be between " + object.minBid + " and " + object.maxBid;
+  }
+
+  //armo la puja nueva. El alias sale de la funcion determinista
+  const newBid = {
+    id: data.bids.length + 1,
+    auctionId: auctionId,
+    userId: currentUserId,
+    amount: monto,
+    alias: getAlias(currentUserId, auctionId),
+    createdAt: new Date().toISOString(),
+  };
+
+  setData({ ...data, bids: [...data.bids, newBid] });
+  return null; //null = todo salio bien, sin mensaje de error
  }
 
+ //requisito 4: crear una casa de subastas
+//quien la crea queda automaticamente como HeadHaunter
+function createHouse(name, theme, description, coverImageUrl, isPrivate, inviteCode) {
+  if (!currentUserId) return "Log in to create a house";
+  if (!name) return "The house needs a name";
+  if (isPrivate && !inviteCode) return "A private house needs an invite code";
+
+  const newHouse = {
+    id: data.houses.length + 1,
+    name: name,
+    theme: theme,
+    description: description,
+    coverImageUrl: coverImageUrl || "/images/house-crypt.jpeg", //si no pone imagen, una por defecto
+    isPrivate: isPrivate,
+    inviteCode: isPrivate ? inviteCode : null, //solo las privadas guardan codigo
+    createdAt: new Date().toISOString(),
+    members: [
+      { userId: currentUserId, role: "HeadHaunter", joinedAt: new Date().toISOString() },
+    ],
+  };
+
+  setData({ ...data, houses: [...data.houses, newHouse] });
+  return null;
+}
+
+//requisito 8: crear un objeto maldito dentro de una casa
+function createObject(hauntHouseId, name, description, imageUrl, baseCurse, minBid, maxBid, durationDays) {
+  if (!currentUserId) return "Log in to create an object";
+
+  //solo los miembros de la casa pueden crear objetos ahi
+  const house = data.houses.find((h) => h.id === hauntHouseId);
+  if (!house) return "House not found";
+  const isMember = house.members.find((m) => m.userId === currentUserId);
+  if (!isMember) return "You must be a member of this house";
+
+  //convierto porque los inputs devuelven texto
+  const min = Number(minBid);
+  const max = Number(maxBid);
+  const dias = Number(durationDays);
+
+  //las reglas exactas del requisito 8
+  if (!name) return "The object needs a name";
+  if (min < 1 || min > 100) return "Min bid must be between 1 and 100";
+  if (max < min + 10 || max > 500) return "Max bid must be between min+10 and 500";
+  if (dias < 1 || dias > 7) return "Duration must be between 1 and 7 days";
+
+  const newObject = {
+    id: data.objects.length + 1,
+    hauntHouseId: hauntHouseId,
+    createdBy: currentUserId,
+    name: name,
+    description: description,
+    imageUrl: imageUrl || "/images/doll.jpeg",
+    baseCurse: baseCurse,
+    minBid: min,
+    maxBid: max,
+    durationDays: dias,
+  };
+
+  setData({ ...data, objects: [...data.objects, newObject] });
+  return null;
+}
+
+//crear una subasta a partir de un objeto que ya existe
+//la fecha de cierre se calcula sumandole los dias de duracion del objeto
+function createAuction(cursedObjectId) {
+  if (!currentUserId) return "Log in to create an auction";
+
+  const object = data.objects.find((o) => o.id === cursedObjectId);
+  if (!object) return "Object not found";
+
+  //un objeto no puede estar en dos subastas abiertas a la vez
+  const yaSubastado = data.auctions.find(
+    (a) => a.cursedObjectId === cursedObjectId && a.status === "open"
+  );
+  if (yaSubastado) return "This object is already being auctioned";
+
+  const ahora = new Date();
+  //getTime da los milisegundos desde 1970. Sumo los dias convertidos a milisegundos
+  const cierre = new Date(ahora.getTime() + object.durationDays * 24 * 60 * 60 * 1000);
+
+  const newAuction = {
+    id: data.auctions.length + 1,
+    hauntHouseId: object.hauntHouseId,
+    cursedObjectId: cursedObjectId,
+    createdBy: currentUserId,
+    startsAt: ahora.toISOString(),
+    endsAt: cierre.toISOString(),
+    status: "open",
+    winnerId: null,
+    winningBid: null,
+  };
+
+  setData({ ...data, auctions: [...data.auctions, newAuction] });
+  return null;
+ }
+
+ function getDuplicateBidders(auctionId){
+  const neededBids = data.bids.filter((b) => b.auctionId === auctionId);
+  const conteo = {};
+  for (const bid of neededBids) {
+    conteo[bid.amount] = (conteo[bid.amount] || 0) + 1;
+  }
+  const duplicatedBidders = Object.keys(conteo).filter((c) => conteo[c] > 1).map((c) => Number(c))
+  const punished = neededBids.filter((p) => duplicatedBidders.includes(p.amount)).map((p) => p.userId)
+  if (duplicatedBidders.length === 0) return [];
+  else return punished;
+ }
+
+ function closeAuction(auctionId) {
+  const auction = data.auctions.find((a) => a.id === auctionId);
+  if (!auction) return "Auction not found";
+  if (auction.status !== "open") return "This auction is already closed";
+
+  //el monto ganador, o null si no hubo ninguna puja unica
+  const winningBid = auctionWinner(auctionId);
+
+  //la puja que gano, para saber quien es el usuario, undefined si no hubo ganador
+  const winningBidObject = data.bids.find((b) => b.auctionId === auctionId && b.amount === winningBid);
+  const winnerId = winningBidObject ? winningBidObject.userId : null;
+
+  //los que empataron y van a ser castigados
+  const punished = getDuplicateBidders(auctionId);
+
+  //el objeto que se subasta y la definicion de su maldicion, para saber cuanta reputacion quita
+  const object = data.objects.find((o) => o.id === auction.cursedObjectId);
+  const curse = CURSES[object.baseCurse];
+  const ahora = new Date().toISOString();
+
+  //la subasta cambia de estado y guarda el resultado, las demas salen intactas
+  const newAuctions = data.auctions.map((a) => {
+    if (a.id !== auctionId) return a;
+    return {
+      ...a,
+      status: winnerId ? "closed" : "cancelled", //sin ganador se cancela
+      winnerId: winnerId,
+      winningBid: winningBid,
+    };
+  });
+
+  //los usuarios, al ganador le cae la maldicion y a los que empataron menos 5
+  const newUsers = data.users.map((u) => {
+    let reputation = u.reputation; //let porque el valor se reasigna, con const no se puede
+
+    if (u.id === winnerId) {
+      reputation = reputation + curse.reputationChange;
+    }
+    if (punished.includes(u.id)) {
+      reputation = reputation - 5;
+    }
+
+    //si no cambio nada, devuelvo el usuario tal cual
+    if (reputation === u.reputation) return u;
+    return { ...u, reputation: reputation };
+  });
+
+  //el registro de maldiciones, solo si hubo ganador
+  let newCurseLog = data.curseLog;
+  if (winnerId) {
+    //si la maldicion dura horas calculo cuando expira, si no queda en null y es permanente
+    const expiresAt = curse.durationHours
+      ? new Date(Date.now() + curse.durationHours * 60 * 60 * 1000).toISOString()
+      : null;
+
+    const entry = {
+      id: data.curseLog.length + 1,
+      userId: winnerId,
+      auctionId: auctionId,
+      curse: curse.code,
+      appliedAt: ahora,
+      expiresAt: expiresAt,
+    };
+    newCurseLog = [...data.curseLog, entry];
+  }
+
+  //el alias del ganador, porque las apuestas van sobre alias y no sobre usuarios
+  const winnerAlias = winningBidObject ? winningBidObject.alias : null;
+
+  const newBets = data.bets.map((b) => {
+    if (b.auctionId !== auctionId) return b; //las de otras subastas, intactas
+    if (b.status !== "pending") return b; //las ya resueltas, intactas
+
+    //si la subasta se cancelo se devuelve la apuesta
+    if (!winnerId) {
+      return { ...b, status: "refunded", payout: b.amount };
+    }
+    //si acerto gana tres veces lo apostado
+    if (b.predictedAlias === winnerAlias) {
+      return { ...b, status: "won", payout: b.amount * 3 };
+    }
+    return { ...b, status: "lost", payout: 0 };
+  });
+
+  //un solo setData con los cuatro arreglos, si fueran cuatro seguidos
+  //los ultimos leerian el data viejo y se pisarian entre si
+  setData({
+    ...data,
+    auctions: newAuctions,
+    users: newUsers,
+    curseLog: newCurseLog,
+    bets: newBets,
+  });
+  return null;
+ }
+
+
+ 
 
  const value = {
   data,
@@ -136,6 +388,12 @@ export function AppProvider({ children }) {//Esta función es el envoltorio. chi
   auctionWinner,
   getAlias,
   joinHouse,
+  placeBid,
+  createHouse,
+  createObject,
+  createAuction,
+  getDuplicateBidders,
+  closeAuction,
 };//value es el contenido de la caja que se comparte con los hijos
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;//AppContext.Provider es el envoltorio que le dice a React: "¡Aquí está la caja con el contenido!"
