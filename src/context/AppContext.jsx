@@ -372,8 +372,58 @@ function createAuction(cursedObjectId) {
   return null;
  }
 
+//requisitos 16 al 19, apostar reputacion sobre quien va a ganar
+function placeBet(auctionId, predictedAlias, amount) {
+  if (!currentUserId) return "Log in to bet";
 
- 
+  const auction = data.auctions.find((a) => a.id === auctionId);
+  if (!auction) return "Auction not found";
+  if (auction.status !== "open") return "This auction is closed";
+
+  //hay que ser miembro de la casa
+  const house = data.houses.find((h) => h.id === auction.hauntHouseId);
+  const isMember = house.members.find((m) => m.userId === currentUserId);
+  if (!isMember) return "You must join the house first";
+
+  //las apuestas cierran una hora antes de que termine la subasta
+  const cierre = new Date(auction.endsAt).getTime() - 60 * 60 * 1000;
+  if (Date.now() > cierre) return "Betting closed one hour before the auction ends";
+
+  //solo se puede apostar 5, 10, 25 o 50
+  const monto = Number(amount);
+  if (![5, 10, 25, 50].includes(monto)) return "Bet must be 5, 10, 25 or 50";
+
+  //no puedes apostar mas reputacion de la que tienes
+  if (currentUser.reputation < monto) return "Not enough reputation";
+
+  //una apuesta por subasta
+  const yaAposto = data.bets.find(
+    (b) => b.auctionId === auctionId && b.bettorId === currentUserId
+  );
+  if (yaAposto) return "You already bet in this auction";
+
+  if (!predictedAlias) return "Pick an alias to bet on";
+
+  const newBet = {
+    id: data.bets.length + 1,
+    auctionId: auctionId,
+    bettorId: currentUserId,
+    predictedAlias: predictedAlias,
+    amount: monto,
+    status: "pending",
+    payout: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  //la reputacion se descuenta al apostar, si gana se le devuelve el triple al cerrar
+  const newUsers = data.users.map((u) => {
+    if (u.id !== currentUserId) return u;
+    return { ...u, reputation: u.reputation - monto };
+  });
+
+  setData({ ...data, bets: [...data.bets, newBet], users: newUsers });
+  return null;
+}
 
  const value = {
   data,
@@ -394,6 +444,7 @@ function createAuction(cursedObjectId) {
   createAuction,
   getDuplicateBidders,
   closeAuction,
+  placeBet,
 };//value es el contenido de la caja que se comparte con los hijos
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;//AppContext.Provider es el envoltorio que le dice a React: "¡Aquí está la caja con el contenido!"

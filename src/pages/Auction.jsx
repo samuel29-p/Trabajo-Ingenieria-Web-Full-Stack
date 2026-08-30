@@ -4,11 +4,14 @@ import { AppContext } from "../context/AppContext.jsx";
 import { useParams, Link } from "react-router-dom";
 
 function Auction() {
-  const { data, currentUser, placeBid, closeAuction } = useContext(AppContext);
+  const { data, currentUser, placeBid, closeAuction, placeBet } = useContext(AppContext);
   const { id } = useParams(); //el id que viene en la direccion, como texto
 
   const [amount, setAmount] = useState("");
   const [bidError, setBidError] = useState("");
+  const [betAlias, setBetAlias] = useState("");
+  const [betAmount, setBetAmount] = useState("10");
+  const [betError, setBetError] = useState("");
 
   //Number(id) porque useParams devuelve texto y los ids son numeros
   const auction = data.auctions.find((a) => a.id === Number(id));
@@ -29,6 +32,21 @@ function Auction() {
 
   //si el usuario conectado ya pujo, le muestro su puja en vez del formulario
   const myBid = bids.find((b) => b.userId === currentUser?.id);
+
+
+  //las apuestas de esta subasta
+  const bets = data.bets.filter((b) => b.auctionId === auction.id);
+  const myBet = bets.find((b) => b.bettorId === currentUser?.id);
+
+  //los alias sobre los que se puede apostar, sin el propio
+  const aliases = bids
+  .filter((b) => b.userId !== currentUser?.id)
+  .map((b) => b.alias);
+
+  function handleBet() {
+  const mensaje = placeBet(auction.id, betAlias, betAmount);
+  setBetError(mensaje || "");
+  }
 
   function handleBid() {
   const mensaje = placeBid(auction.id, amount);
@@ -138,6 +156,51 @@ function Auction() {
       <p className="text-app-muted text-sm mt-2">
         Reveals all bids, applies the curse and resolves the bets.
       </p>
+      </div>
+      )}
+      {auction.status === "open" && currentUser && (
+      <div className="mt-8">
+      <h2 className="text-2xl font-bold text-app-text mb-3">Side bets</h2>
+
+      {myBet && (
+       <p className="text-app-text">
+        You bet {myBet.amount} on{" "}
+        <span className="text-ember-accent">{myBet.predictedAlias}</span>.
+       </p>
+       )}
+
+       {!myBet && (
+        <div>
+         <select
+          value={betAlias}
+          onChange={(e) => setBetAlias(e.target.value)}
+          className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text">
+          <option value="">Pick an alias</option>
+          {aliases.map((alias) => (
+            <option key={alias} value={alias}>{alias}</option>
+          ))}
+         </select>
+
+        <select
+          value={betAmount}
+          onChange={(e) => setBetAmount(e.target.value)}
+          className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+
+        <button
+          onClick={handleBet}
+          className="bg-gold-accent hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-button">
+          Bet
+        </button>
+        {betError && <p className="text-blood-accent mt-2">{betError}</p>}
+        </div>
+        )}
+
+      <p className="text-app-muted mt-3">{bets.length} bets placed</p>
       </div>
       )}
       </main>

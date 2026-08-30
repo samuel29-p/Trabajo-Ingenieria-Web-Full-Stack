@@ -99,9 +99,10 @@ export const SEED_OBJECTS = [
 // 6 subastas: 3 abiertas, 2 cerradas con ganador, 1 cancelada.
 // winnerId y winningBid quedan en null mientras no haya ganador.
 export const SEED_AUCTIONS = [
-  { id: 1, hauntHouseId: 1, cursedObjectId: 1, createdBy: 1, startsAt: "2026-08-21T18:00:00", endsAt: "2026-08-26T18:00:00", status: "open", winnerId: null, winningBid: null },
-  { id: 2, hauntHouseId: 2, cursedObjectId: 4, createdBy: 2, startsAt: "2026-08-22T09:00:00", endsAt: "2026-08-25T09:00:00", status: "open", winnerId: null, winningBid: null },
-  { id: 3, hauntHouseId: 3, cursedObjectId: 7, createdBy: 4, startsAt: "2026-08-22T20:00:00", endsAt: "2026-08-28T20:00:00", status: "open", winnerId: null, winningBid: null },
+  { id: 1, hauntHouseId: 1, cursedObjectId: 1, createdBy: 1, startsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), status: "open", winnerId: null, winningBid: null },
+  { id: 2, hauntHouseId: 2, cursedObjectId: 4, createdBy: 2, startsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), endsAt: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(), status: "open", winnerId: null, winningBid: null },
+  { id: 3, hauntHouseId: 3, cursedObjectId: 7, createdBy: 4, startsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), endsAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), status: "open", winnerId: null, winningBid: null },
+  //estas tres  ya terminaron
   { id: 4, hauntHouseId: 1, cursedObjectId: 3, createdBy: 3, startsAt: "2026-08-10T12:00:00", endsAt: "2026-08-17T12:00:00", status: "closed", winnerId: 9, winningBid: 19 },
   { id: 5, hauntHouseId: 2, cursedObjectId: 5, createdBy: 6, startsAt: "2026-08-12T15:00:00", endsAt: "2026-08-16T15:00:00", status: "closed", winnerId: 10, winningBid: 4 },
   { id: 6, hauntHouseId: 3, cursedObjectId: 8, createdBy: 4, startsAt: "2026-08-08T10:00:00", endsAt: "2026-08-10T10:00:00", status: "cancelled", winnerId: null, winningBid: null },
