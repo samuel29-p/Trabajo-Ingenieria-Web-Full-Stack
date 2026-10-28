@@ -1,0 +1,153 @@
+# PhantomBids
+
+Casa de subastas fantasma donde todo funciona al revés: el objeto embrujado se lo lleva quien menos dinero ofrece, pero la oferta debe ser única y nadie conoce las pujas de los demás hasta el cierre.
+
+**Proyecto 3, Ingeniería Web**
+Samuel Restrepo Zapata
+Universidad EIA
+
+Trabajo individual. Me basé en el repositorio base que compartió la profesora (taskflow-mini) para la configuración inicial y para reutilizar algunos componentes de interfaz.
+
+La aplicación está escrita en inglés. Lo decidí así porque al estar aprendiendo React desde cero me confundía menos mantener un solo idioma entre el lenguaje de programación y los textos de la app. Los comentarios del código sí están en español: los escribí para estudiar el proyecto, entenderlo mejor, poder releerlo sin perderme y tener con qué explicarlo al momento de exponerlo.
+
+## Stack
+
+- **React 19** con archivos `.jsx`
+- **Vite** como servidor de desarrollo y empaquetador
+- **react-router-dom v7** para las rutas
+- **Tailwind CSS v4** con variables de color propias definidas en `src/index.css`
+- **react-icons** para los iconos
+- **Context API** para el estado global
+- **localStorage** para persistir los datos entre sesiones
+
+## Cómo correrlo
+
+Se necesita Node.js 20 o superior.
+
+```bash
+npm install
+npm run dev
+```
+
+La aplicación queda en `http://localhost:5173/`.
+
+Para volver a los datos semilla originales, en la consola del navegador:
+
+```js
+localStorage.clear()
+```
+
+Y recargar la página. Esto borra también la sesión, así que hay que volver a iniciar sesión.
+
+## Usuarios de prueba
+
+Los 12 usuarios semilla usan la contraseña `1234`. Estos tres son los más útiles para probar:
+
+| Email | Usuario | Rol |
+|---|---|---|
+| `vinland@phantom.com` | vinland | HeadHaunter de The Silent Crypt |
+| `newfoundland@phantom.com` | newfoundland | HeadHaunter de The Laughing Basement |
+| `cheeseburger@phantom.com` | cheeseburger | HeadHaunter de Room 13 |
+
+El código de invitación de Room 13, que es la casa privada, es `SALA13`.
+
+Solo el creador de una subasta o el HeadHaunter de la casa pueden cerrarla.
+
+## Estructura
+
+```
+src/
+├── data/        archivos de datos: seedData.js y Curses.js
+├── context/     AppContext.jsx (estado global) y ThemeContext.jsx (modo oscuro)
+├── pages/       una pantalla por ruta
+├── components/  piezas reutilizables (NavBar, Card, Badge, botones, inputs)
+├── App.jsx      el mapa de rutas
+└── main.jsx     el arranque de la aplicación
+```
+
+La regla que seguí: si el archivo dibuja algo en pantalla va en `pages` o `components` y termina en `.jsx`; si solo tiene datos o cálculos va en `data` y termina en `.js`.
+
+## Dónde está cada requisito
+
+### A. Autenticación y alias anónimos
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 1 | Registro, inicio y cierre de sesión | `AppContext.jsx`: `register`, `login`, `logout`. Pantallas `Register.jsx` y `Login.jsx` |
+| 2 | Perfil con username, email, reputación en 100, fecha de ingreso y avatar | `Profile.jsx`, objeto creado en `register` |
+| 3 | Alias anónimo temporal por subasta con formato `[Adjetivo]_[Número]` | `AppContext.jsx`: `getAlias` |
+
+### B. Casas de subasta
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 4 | Crear casa con nombre, tema, descripción e imagen | `AppContext.jsx`: `createHouse`. Pantalla `CreateHouse.jsx` |
+| 5 | Unirse: las públicas libres, las privadas con código | `AppContext.jsx`: `joinHouse`. Formulario en `House.jsx` |
+| 6 | Ver la lista de miembros | `House.jsx`, sección Members |
+| 7 | Roles HeadHaunter, SeniorSpook, Spirit y Poltergeist | Campo `role` dentro de `members`, visible en `House.jsx` |
+
+### C. Objetos malditos
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 8 | Crear objeto con sus rangos de puja y duración | `AppContext.jsx`: `createObject`. Pantalla `CreateObject.jsx` |
+| 9 | Las 8 maldiciones predefinidas | `data/Curses.js`, listadas en `CursesPage.jsx` |
+
+### D. Subasta inversa secreta
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 10 | Una sola puja por usuario y por subasta | `AppContext.jsx`: validación dentro de `placeBid` |
+| 11 | La puja es un entero entre minBid y maxBid | `AppContext.jsx`: validación dentro de `placeBid` |
+| 12 | Gana la puja más baja y única | `AppContext.jsx`: `auctionWinner` |
+| 13 | Si no hay ninguna puja única, la subasta se cancela | `auctionWinner` devuelve `null` y `closeAuction` marca el estado como `cancelled` |
+| 14 | Las pujas son secretas hasta el cierre | `Auction.jsx`: solo se recorren y muestran cuando el estado deja de ser `open` |
+
+### E. Penalización por pujas duplicadas
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 15 | Los que empatan pierden 5 de reputación y quedan como Poltergeist | `AppContext.jsx`: `getDuplicateBidders` y su aplicación dentro de `closeAuction` |
+
+### F. Sistema de apuestas paralelas
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 16 | Apostar 5, 10, 25 o 50 puntos de reputación | `AppContext.jsx`: `placeBet` |
+| 17 | Se apuesta sobre alias, nunca sobre usernames reales | `placeBet` recibe `predictedAlias`; el desplegable de `Auction.jsx` solo ofrece alias |
+| 18 | Las apuestas cierran una hora antes del fin de la subasta | Validación de fecha dentro de `placeBet` |
+| 19 | Si acierta gana el triple, si falla pierde lo apostado | Resolución dentro de `closeAuction` |
+
+### G. Efectos post subasta
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 20 | La maldición se aplica y queda en el registro del usuario | `closeAuction` agrega la entrada al `curseLog`, visible en `Profile.jsx` |
+| 21 | Los efectos de reputación son permanentes y los de permisos temporales | Campo `expiresAt`: queda en `null` para los permanentes y con fecha para los temporales |
+| 22 | Un usuario puede tener varias maldiciones a la vez | El `curseLog` es una lista y `Profile.jsx` filtra todas las del usuario |
+
+### H. Rankings
+
+| # | Requisito | Dónde |
+|---|---|---|
+| 23 | Worst Bidder, Total Cursed, Free Spirit y Betting Prophet | `AppContext.jsx`: `getHouseRankings`, mostrados al final de `House.jsx` |
+
+## Datos semilla
+
+Se cargan una sola vez, cuando `localStorage` está vacío. Incluyen 3 casas (Darkness, Comedy y Terror), 12 usuarios con las reputaciones que pide el enunciado, 8 objetos malditos, 6 subastas (3 abiertas, 2 cerradas con ganador y 1 cancelada), 25 pujas con varios escenarios de empate, 10 apuestas y 3 maldiciones ya aplicadas.
+
+Las fechas de cierre de las tres subastas abiertas no son fijas: se calculan al cargar los datos, con 30, 45 y 60 días de margen. Así siguen abiertas sin importar en qué fecha se revise el proyecto.
+
+## Decisiones de diseño
+
+**El alias determinista.** El enunciado pide un hash determinista, o sea que el mismo usuario en la misma subasta siempre debe producir el mismo alias. Si fuera aleatorio, el alias cambiaría en cada redibujado de la pantalla y no se podría apostar sobre él. La función combina el id del usuario y el de la subasta, multiplicando por números primos para separar los resultados, y usa el módulo sobre la cantidad de adjetivos para escoger uno. Meter el id de la subasta en la cuenta es lo que hace que el mismo usuario tenga alias distinto en subastas distintas, que es lo que protege el anonimato.
+
+**El cálculo del ganador.** No basta con buscar el menor de todos, porque el menor puede estar repetido y quedar descalificado. Tampoco basta con buscar el que menos se repite, porque puede haber varios empatados en una sola aparición. Son dos pasos en orden: primero contar apariciones y descartar los montos que salen más de una vez, y solo después tomar el mínimo de los que sobrevivieron.
+
+**Un solo setData al cerrar una subasta.** Cerrar una subasta toca cuatro partes de los datos a la vez: el estado de la subasta, la reputación de los usuarios, el registro de maldiciones y las apuestas. Todo se calcula primero en variables y se guarda con una sola llamada. Con cuatro llamadas seguidas, las tres últimas leerían el estado viejo, porque React no lo actualiza hasta el siguiente dibujado, y los cambios se pisarían entre sí.
+
+**Las entidades se conectan por id.** Ninguna entidad guarda otra adentro: una puja no contiene al usuario completo, solo su `userId`. Así la reputación vive en un solo lugar y no hay que actualizarla en copias regadas por todos lados. Es la misma idea de una llave foránea.
+
+**El estado se reemplaza, no se modifica.** Nunca se hace `push` ni se cambia un campo directamente. Siempre se crea un objeto o arreglo nuevo con el operador spread, porque React solo vuelve a dibujar cuando detecta que la referencia cambió.
+
+**Los mensajes de error los arma la pantalla, salvo cuando hay muchos casos.** Funciones con una sola condición de fallo, como `login`, devuelven `true` o `false` y la pantalla decide qué texto mostrar. Funciones con varias razones distintas de fallo, como `placeBid` o `placeBet`, devuelven directamente el mensaje, porque solo ellas saben cuál de las validaciones fue la que no pasó.
