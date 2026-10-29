@@ -39,7 +39,7 @@ const unirseCasa = asyncHandler(async (req, res) => {
 
 //GET /api/houses/:id/members
 const obtenerMiembros = asyncHandler(async (req, res) => {
-  const miembros = await houseService.obtenerMiembros(req.params.id, req.usuario._id);
+  const miembros = await houseService.obtenerMiembros(req.params.id, req.usuario);
   res.status(200).json({ miembros });
 });
 

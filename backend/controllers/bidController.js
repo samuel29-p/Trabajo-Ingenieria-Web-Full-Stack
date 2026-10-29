@@ -1,4 +1,4 @@
-﻿const asyncHandler = require("../utils/asyncHandler");
+const asyncHandler = require("../utils/asyncHandler");
 const bidService = require("../services/bidService");
 
 //POST /api/auctions/:id/bids
@@ -13,4 +13,10 @@ const listar = asyncHandler(async (req, res) => {
   res.status(200).json({ pujas });
 });
 
-module.exports = { pujar, listar };
+//GET /api/auctions/:id/bids/me
+const miPuja = asyncHandler(async (req, res) => {
+  const puja = await bidService.miPuja(req.params.id, req.usuario);
+  res.status(200).json({ puja });
+});
+
+module.exports = { pujar, listar, miPuja };

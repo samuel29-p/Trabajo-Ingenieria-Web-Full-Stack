@@ -10,6 +10,9 @@ const miembroSchema = new mongoose.Schema(
       default: "Spirit",
     },
     joinedAt: { type: Date, default: Date.now },
+    //cuando un miembro queda poltergeist por un tiempo, aqui se guarda hasta cuando y que rol tenia antes
+    poltergeistUntil: { type: Date, default: null },
+    previousRole: { type: String, default: null },
   },
   { _id: false }
 );

@@ -1,4 +1,4 @@
-﻿# PhantomBids API
+# PhantomBids API
 
 Backend de PhantomBids, una casa de subastas inversas de objetos embrujados. En cada subasta los usuarios pujan en secreto con un alias anonimo, gana la puja mas baja que nadie mas repitio, y al ganador le cae la maldicion del objeto.
 
@@ -89,9 +89,17 @@ La API queda en http://localhost:3000 y Swagger en http://localhost:3000/api-doc
 
 ## Datos semilla
 
-El seed crea 12 usuarios, 3 casas, 8 objetos malditos, 4 subastas (3 abiertas y 1 cerrada), 10 pujas, 3 apuestas y una maldicion aplicada. Son los mismos datos del front de la entrega 1.
+El seed crea lo que pide la seccion Seed Data del enunciado: 12 usuarios mas un admin, 3 casas, 8 objetos malditos, 6 subastas (3 abiertas, 2 cerradas con ganador y 1 cancelada), 25 pujas con varios casos de duplicados, 10 apuestas y 3 maldiciones aplicadas. Son los mismos datos del front de la entrega 1.
 
-Todos los usuarios tienen la contrasena `123456`. Por ejemplo: `vinland@phantom.com`, `newfoundland@phantom.com`, `illWin@phantom.com`.
+### Credenciales de prueba
+
+| Rol | Email | Contrasena |
+|---|---|---|
+| Administrador | `admin@phantom.com` | `admin123` |
+| Usuario estandar | `vinland@phantom.com` | `123456` |
+| Usuario estandar | `illWin@phantom.com` | `123456` |
+
+Los otros 10 usuarios del seed tambien usan la contrasena `123456`.
 
 ## Autenticacion y roles
 
@@ -130,7 +138,8 @@ Todos los usuarios tienen la contrasena `123456`. Por ejemplo: `vinland@phantom.
 | PUT | /api/houses/:id | Edita una casa | HeadHaunter o admin |
 | DELETE | /api/houses/:id | Elimina una casa | Admin |
 | POST | /api/houses/:id/join | Unirse a una casa, pide codigo si es privada | Con token |
-| GET | /api/houses/:id/members | Lista los miembros | Miembros |
+| GET | /api/houses/:id/members | Lista los miembros con su nombre real | Miembros o admin |
+| GET | /api/houses/:id/rankings | Peor pujador, mas maldito, espiritus libres y profeta de apuestas | Miembros o admin |
 
 ### Objects
 
@@ -153,6 +162,7 @@ Todos los usuarios tienen la contrasena `123456`. Por ejemplo: `vinland@phantom.
 | DELETE | /api/auctions/:id | Borra la subasta con sus pujas y apuestas | Admin |
 | POST | /api/auctions/:id/bids | Puja secreta con alias anonimo | Miembros, no Poltergeist |
 | GET | /api/auctions/:id/bids | Abierta: solo alias. Cerrada: alias y montos | Con token |
+| GET | /api/auctions/:id/bids/me | La puja propia, con su alias y su monto | Con token |
 | POST | /api/auctions/:id/bets | Apuesta reputacion a un alias | Miembros |
 | GET | /api/auctions/:id/bets | Lista las apuestas | Con token |
 | POST | /api/auctions/:id/close | Cierra la subasta y aplica los efectos | Creador o admin |
@@ -162,14 +172,16 @@ Todos los usuarios tienen la contrasena `123456`. Por ejemplo: `vinland@phantom.
 | Metodo | Ruta | Descripcion | Acceso |
 |---|---|---|---|
 | GET | /api/curses | Catalogo de las 8 maldiciones | Publico |
+| GET | /api/curses/me | Registro de maldiciones del usuario con sesion | Con token |
 
 ## Reglas del juego
 
-- **Pujas secretas:** cada usuario puja una sola vez por subasta, dentro del rango `minBid` y `maxBid` del objeto. El servidor le asigna un alias anonimo distinto en cada subasta, y mientras la subasta esta abierta nadie ve los montos.
-- **Ganador:** al cerrar, gana la puja mas baja que nadie mas repitio.
-- **Pujas duplicadas:** los usuarios que repitieron un monto pierden 5 de reputacion.
-- **Maldicion:** al ganador le cae la maldicion base del objeto y queda registrada en `CurseLog`. Algunas bajan reputacion y otras duran unas horas, por ejemplo Brief Exile vuelve al ganador Poltergeist en la casa.
-- **Apuestas:** se apuesta 5, 10, 25 o 50 de reputacion a un alias. Lo apostado se descuenta al apostar. Si el alias gana, se paga el doble; si pierde, se pierde; si no hubo ganador, se devuelve. No se puede apostar por el propio alias, y la maldicion Blind Eye impide apostar.
+- **Pujas secretas:** cada usuario puja una sola vez por subasta, dentro del rango `minBid` y `maxBid` del objeto. El servidor le asigna un alias anonimo con la forma `Adjetivo_Numero`, distinto en cada subasta, y mientras la subasta esta abierta nadie ve los montos.
+- **Ganador:** al cerrar, gana la puja mas baja que nadie mas repitio. Si no hay ninguna puja unica, la subasta queda cancelada.
+- **Pujas duplicadas:** los usuarios que repitieron un monto pierden 5 de reputacion y quedan como Poltergeist en la casa por 48 horas. Cuando el castigo vence vuelven a su rol anterior.
+- **Maldicion:** al ganador le cae la maldicion base del objeto y queda registrada en `CurseLog`. Las de reputacion son permanentes y las de permisos duran unas horas: Spectral Gag no deja pujar, Blind Eye no deja apostar, Plaster Hand parte a la mitad la siguiente ganancia y Brief Exile vuelve Poltergeist al ganador por 24 horas.
+- **Apuestas:** se apuesta 5, 10, 25 o 50 de reputacion a un alias, y se cierran una hora antes del final de la subasta. Lo apostado se descuenta al apostar. Si el alias gana, se paga el triple; si pierde, se pierde; si la subasta se cancela, se devuelve. No se puede apostar por el propio alias.
+- **Rankings:** cada casa tiene cuatro rankings, peor pujador (el que puja mas alto en promedio), mas maldito, espiritus libres (los que nunca han ganado) y profeta de apuestas (el que mas ha ganado apostando).
 
 ## Codigos de respuesta
 
