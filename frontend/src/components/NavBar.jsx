@@ -1,13 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import ButtonTheme from "../components/buttons/ButtonTheme";
-import { logout, selectUser } from "../store/slices/authSlice";
+import { logout, selectUser, selectIsAdmin } from "../store/slices/authSlice";
 import {
   PiHouse,
   PiSignIn,
   PiUserPlus,
   PiUser,
   PiSkull,
+  PiShieldStar,
   PiSignOut,
 } from "react-icons/pi";
 
@@ -16,6 +17,7 @@ function Navegacion() {
   const navigate = useNavigate();
   //el usuario sale del store de redux, si es null es porque nadie inicio sesion
   const currentUser = useSelector(selectUser);
+  const isAdmin = useSelector(selectIsAdmin);
 
   //los links que ve todo el mundo
   const links = [
@@ -29,6 +31,11 @@ function Navegacion() {
   } else {
     links.push({ to: "/login", label: "Log in", icon: <PiSignIn className="text-xl" /> });
     links.push({ to: "/register", label: "Sign up", icon: <PiUserPlus className="text-xl" /> });
+  }
+
+  //el link de admin solo aparece si el usuario es admin
+  if (isAdmin) {
+    links.push({ to: "/admin", label: "Admin", icon: <PiShieldStar className="text-xl" /> });
   }
 
   //cerrar sesion manda al login y borra el token y el usuario
