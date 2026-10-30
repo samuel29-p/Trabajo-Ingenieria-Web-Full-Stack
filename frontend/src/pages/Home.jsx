@@ -1,10 +1,31 @@
-import NavBar from "../components/NavBar.jsx";
-import { useContext } from "react";
-import { AppContext } from "../context/AppContext.jsx";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom"; //Link sirve para navegar sin recargar la pagina
+import NavBar from "../components/NavBar.jsx";
+import Loading from "../components/Loading.jsx";
+import ErrorMessage from "../components/ErrorMessage.jsx";
+import { houseService } from "../services/houseService";
+import { mensajeError } from "../utils/mensajeError";
 
 function Home() {
-  const { data, currentUser } = useContext(AppContext); //saco los datos del contexto
+  const [casas, setCasas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  //al abrir la pagina se piden las casas al backend, una sola vez
+  useEffect(() => {
+    async function cargar() {
+      try {
+        const datos = await houseService.getCasas();
+        setCasas(datos);
+      } catch (err) {
+        setError(mensajeError(err, "Could not load the houses"));
+      } finally {
+        //pase lo que pase se apaga el loading
+        setLoading(false);
+      }
+    }
+    cargar();
+  }, []);
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
@@ -13,28 +34,24 @@ function Home() {
         <h1 className="text-3xl font-bold text-app-text">PhantomBids</h1>
         <p className="text-app-muted mb-6">Haunt houses</p>
 
-        {/* el boton de crear casa solo se ve si hay sesion abierta */}
-        {currentUser && (
-          <Link
-            to="/create-house"
-            className="inline-block bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button mb-6"
-          >
-            + New house
-          </Link>
+        <Link
+          to="/create-house"
+          className="inline-block bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button mb-6"
+        >
+          + New house
+        </Link>
+
+        {loading && <Loading texto="Loading houses..." />}
+        <ErrorMessage mensaje={error} />
+
+        {!loading && !error && casas.length === 0 && (
+          <p className="text-app-muted">There are no houses yet.</p>
         )}
 
-        {/* Las llaves { } dentro del JSX significan "aqui adentro esto es JavaScript, no texto" */}
-        {/* .map() recorre el arreglo y devuelve otro arreglo, transformando cada elemento */}
-        {data.houses.map((casa) => (
-          //Link navega sin recargar la pagina (a diferencia de <a href>, que recarga todo y borra el estado)
-          //envuelve la tarjeta completa para que el clic funcione en cualquier parte de ella
-          //to es a donde lleva. Se arma pegando texto con el id: para la casa 2 seria "/house/2"
-          //ese "/house/" tiene que coincidir con el path de la ruta en App.jsx
-          //key va en el elemento de mas afuera de cada vuelta, por eso esta aqui y no en el div
-          //block hace que el link ocupe todo el ancho (los links por defecto ocupan solo su contenido)
-          <Link key={casa.id} to={"/house/" + casa.id} className="block">
+        {casas.map((casa) => (
+          //en mongo el id se llama _id, ya no id como en los datos de prueba
+          <Link key={casa._id} to={"/house/" + casa._id} className="block">
             <div className="bg-app-surface border border-app-border rounded-card shadow-card overflow-hidden mb-4 hover:shadow-card-hover transition-shadow">
-              {/* la portada de la casa: sale de public/images */}
               <img
                 src={casa.coverImageUrl}
                 alt={casa.name}
@@ -43,10 +60,15 @@ function Home() {
               <div className="p-4">
                 <h2 className="text-xl font-bold text-app-text">{casa.name}</h2>
                 <p className="text-app-muted">{casa.description}</p>
-                {/* el tema de la casa, como etiqueta pequena */}
-                <span className="inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-pill bg-ember-soft text-ember-accent">
-                  {casa.theme}
-                </span>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="inline-block text-xs font-semibold px-3 py-1 rounded-pill bg-ember-soft text-ember-accent">
+                    {casa.theme}
+                  </span>
+                  {/* la cantidad de miembros es el largo del arreglo members */}
+                  <span className="text-app-muted text-sm">
+                    {casa.members.length} members
+                  </span>
+                </div>
               </div>
             </div>
           </Link>
