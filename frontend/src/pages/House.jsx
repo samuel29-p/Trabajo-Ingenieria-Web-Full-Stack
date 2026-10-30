@@ -1,39 +1,159 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import NavBar from "../components/NavBar.jsx";
-import { useContext, useState } from "react";
-import { AppContext } from "../context/AppContext.jsx";
-import { useParams, Link } from "react-router-dom";
+import Loading from "../components/Loading.jsx";
+import ErrorMessage from "../components/ErrorMessage.jsx";
+import SuccessMessage from "../components/SuccessMessage.jsx";
+import { selectUser, selectIsAdmin } from "../store/slices/authSlice";
+import { houseService } from "../services/houseService";
+import { objectService } from "../services/objectService";
+import { auctionService } from "../services/auctionService";
+import { mensajeError } from "../utils/mensajeError";
 
 function House() {
-  const { data, currentUser, joinHouse, getHouseRankings, createAuction } = useContext(AppContext);
-  const { id } = useParams(); //el id que viene en la direccion, como TEXTO
+  const { id } = useParams(); //el id de la casa que viene en la direccion
+  const navigate = useNavigate();
+  const user = useSelector(selectUser);
+  const isAdmin = useSelector(selectIsAdmin);
 
-  //los useState van siempre arriba, nunca dentro de un map o un if
-  const [codigo, setCodigo] = useState(""); //lo que el usuario escribe en el input del codigo
-  const [error, setError] = useState(""); //mensaje de error, vacio = no mostrar nada
+  const [casa, setCasa] = useState(null);
+  const [miembros, setMiembros] = useState([]);
+  const [rankings, setRankings] = useState(null);
+  const [objetos, setObjetos] = useState([]);
+  const [subastas, setSubastas] = useState([]);
+  const [codigo, setCodigo] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [exito, setExito] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  //cada vez que cambia este numero el useEffect vuelve a pedir todo al backend
+  const [recarga, setRecarga] = useState(0);
 
-  //Number(id) porque useParams devuelve texto y los ids de las casas son numeros
-  const casa = data.houses.find((h) => h.id === Number(id));
+  useEffect(() => {
+    async function cargar() {
+      try {
+        const datosCasa = await houseService.getCasa(id);
+        //la casa trae la lista de miembros solo con ids, de ahi se saca si el usuario es miembro
+        const esMiembro = datosCasa.members.some((m) => m.userId === user._id);
 
-  //salida temprana: si no existe, muestro un mensaje y no sigo
+        //lo que no depende de ser miembro se pide en paralelo
+        const pedidos = [
+          objectService.getObjetos(id),
+          auctionService.getSubastas({ hauntHouseId: id }),
+        ];
+        //los miembros y los rankings solo los puede pedir un miembro, si no el backend responde 403
+        if (esMiembro) {
+          pedidos.push(houseService.getMiembros(id));
+          pedidos.push(houseService.getRankings(id));
+        }
+        const [listaObjetos, listaSubastas, listaMiembros, listaRankings] =
+          await Promise.all(pedidos);
+
+        setCasa(datosCasa);
+        setObjetos(listaObjetos);
+        setSubastas(listaSubastas);
+        setMiembros(listaMiembros || []);
+        setRankings(listaRankings || null);
+        setError("");
+      } catch (err) {
+        setError(mensajeError(err, "Could not load the house"));
+      } finally {
+        setLoading(false);
+      }
+    }
+    cargar();
+  }, [id, user._id, recarga]);
+
+  //guard clauses: mientras carga o si fallo, no se dibuja el resto
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-app-bg">
+        <NavBar />
+        <main className="container mx-auto px-4 py-8">
+          <Loading texto="Loading house..." />
+        </main>
+      </div>
+    );
+  }
   if (!casa) {
-    return <p className="p-8 text-app-text">That house does not exist.</p>;
+    return (
+      <div className="min-h-screen bg-app-bg">
+        <NavBar />
+        <main className="container mx-auto px-4 py-8">
+          <ErrorMessage mensaje={error || "That house does not exist."} />
+        </main>
+      </div>
+    );
   }
 
-  //de las 6 subastas que hay en total, me quedo solo con las de esta casa
-  //va despues del if porque aqui ya se que casa existe
-  const subastas = data.auctions.filter((a) => a.hauntHouseId === casa.id);
+  const esMiembro = casa.members.some((m) => m.userId === user._id);
 
-  //busco si el usuario conectado ya esta en la lista de miembros
-  //el ?. es porque currentUser puede ser null si nadie inicia sesion
-  const alreadyMember = casa.members.find((m) => m.userId === currentUser?.id);
-
-  //se ejecuta al hacer clic en el boton. joinHouse esta en el contexto y devuelve true o false
-  function handleJoin() {
-    const exito = joinHouse(casa.id, codigo);
-    if (!exito) {
-      setError("Could not join. Check the invite code or if you are already a member.");
+  //ejecuta una accion contra el backend: desactiva botones, muestra el exito o el error y recarga
+  async function ejecutar(accion, textoExito, alTerminar) {
+    setEnviando(true);
+    setError("");
+    setExito("");
+    try {
+      await accion();
+      setExito(textoExito);
+      if (alTerminar) {
+        alTerminar();
+      } else {
+        setRecarga((n) => n + 1);
+      }
+    } catch (err) {
+      setError(mensajeError(err, "Something went wrong"));
+    } finally {
+      setEnviando(false);
     }
   }
+
+  function handleJoin() {
+    ejecutar(() => houseService.unirse(id, codigo), "You joined the house");
+  }
+
+  function handleStartAuction(objetoId) {
+    ejecutar(() => auctionService.crearSubasta(objetoId), "Auction started");
+  }
+
+  function handleDeleteObject(objetoId) {
+    //si el objeto esta en subasta el backend responde 409 y se muestra ese error
+    ejecutar(() => objectService.eliminarObjeto(objetoId), "Object deleted");
+  }
+
+  function handleDeleteHouse() {
+    if (!window.confirm("Delete this house?")) return;
+    ejecutar(() => houseService.eliminarCasa(id), "House deleted", () => navigate("/"));
+  }
+
+  //las subastas guardan solo el id del objeto, por eso se busca en la lista de objetos
+  function nombreObjeto(subasta) {
+    const objeto = objetos.find((o) => o._id === subasta.cursedObjectId);
+    return objeto ? objeto.name : "Deleted object";
+  }
+
+  function estaEnSubasta(objetoId) {
+    return subastas.some((s) => s.cursedObjectId === objetoId && s.status === "open");
+  }
+
+  //un objeto lo puede editar o borrar su creador o un admin
+  function puedeGestionar(objeto) {
+    return isAdmin || objeto.createdBy === user._id;
+  }
+
+  const botonNaranja =
+    "bg-ember-accent hover:bg-orange-600 disabled:opacity-60 text-white font-semibold px-4 py-2 rounded-button";
+
+  //los cuatro rankings: titulo, lista y como se muestra el dato de cada uno
+  const tablas = rankings
+    ? [
+        { titulo: "Worst Bidder", lista: rankings.worstBidder, dato: (s) => "avg " + s.avgBid },
+        { titulo: "Total Cursed", lista: rankings.totalCursed, dato: (s) => s.curses + " curses" },
+        { titulo: "Free Spirit", lista: rankings.freeSpirits, dato: () => "never won" },
+        { titulo: "Betting Prophet", lista: rankings.bettingProphet, dato: (s) => s.profit + " rep" },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
@@ -47,17 +167,12 @@ function House() {
         <h1 className="text-3xl font-bold text-app-text">{casa.name}</h1>
         <p className="text-app-muted mb-6">{casa.description}</p>
 
-        {/* tres situaciones distintas: sin sesion, ya miembro, o puede unirse */}
-        {/* el && muestra lo de la derecha solo si lo de la izquierda es verdadero */}
-        {!currentUser && (
-          <p className="text-app-muted mb-6">Log in to join this house.</p>
-        )}
+        <ErrorMessage mensaje={error} />
+        <SuccessMessage mensaje={exito} />
 
-        {currentUser && alreadyMember && (
+        {esMiembro ? (
           <p className="text-app-text mb-6">You are already a member of this house.</p>
-        )}
-
-        {currentUser && !alreadyMember && (
+        ) : (
           <div className="mb-6">
             {/* el input del codigo solo aparece si la casa es privada */}
             {casa.isPrivate && (
@@ -69,109 +184,132 @@ function House() {
                 className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text"
               />
             )}
-            <button
-              onClick={handleJoin}
-              className="bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button"
-            >
-              Join
+            <button onClick={handleJoin} disabled={enviando} className={botonNaranja}>
+              {enviando ? "Joining..." : "Join"}
             </button>
-            {error && <p className="text-blood-accent mt-2">{error}</p>}
           </div>
         )}
 
-        <h2 className="text-2xl font-bold text-app-text mb-3">Members</h2>
+        {isAdmin && (
+          <button
+            onClick={handleDeleteHouse}
+            disabled={enviando}
+            className="bg-blood-accent hover:opacity-80 disabled:opacity-60 text-white font-semibold px-4 py-2 rounded-button mb-6"
+          >
+            Delete house
+          </button>
+        )}
 
-        {/* recorro los miembros de esta casa, uno por uno */}
-        {casa.members.map((miembro) => {
-          //cada miembro solo trae el userId, asi que busco su usuario completo
-          const user = data.users.find((u) => u.id === miembro.userId);
-          return (
-            <div
-              key={miembro.userId} //el key es obligatorio en toda lista
-              className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex items-center gap-3"
-            >
-              <img src={user?.avatarUrl} alt="" className="w-10 h-10 rounded-pill" />
-              <div>
-                {/* el ?. evita que explote si el usuario ya no existe */}
-                <p className="text-app-text">{user?.username}</p>
-                <p className="text-app-muted text-sm">{miembro.role}</p>
+        {/* miembros y rankings llevan nombres reales, solo los ven los miembros */}
+        {esMiembro && (
+          <>
+            <h2 className="text-2xl font-bold text-app-text mb-3">Members</h2>
+            {miembros.map((miembro) => (
+              <div
+                key={miembro.userId}
+                className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex items-center gap-3"
+              >
+                <img src={miembro.avatarUrl} alt="" className="w-10 h-10 rounded-pill" />
+                <div>
+                  <p className="text-app-text">{miembro.username}</p>
+                  {/* los poltergeist se resaltan con otro color */}
+                  <p
+                    className={
+                      miembro.role === "Poltergeist"
+                        ? "text-blood-accent text-sm font-bold"
+                        : "text-app-muted text-sm"
+                    }
+                  >
+                    {miembro.role}
+                  </p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            ))}
 
-        {currentUser && alreadyMember && (<>
-        <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Cursed objects</h2>
+            <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Cursed objects</h2>
+            <Link to={"/house/" + id + "/new-object"} className={"inline-block mb-4 " + botonNaranja}>
+              + New object
+            </Link>
+          </>
+        )}
 
-        <Link to={"/house/" + casa.id + "/new-object"}
-        className="inline-block bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button mb-4">
-        + New object
-        </Link>
+        {!esMiembro && <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Cursed objects</h2>}
 
-       {data.objects.filter((o) => o.hauntHouseId === casa.id).map((obj) => {
-        //miro si ese objeto ya esta en una subasta abierta
-        const enSubasta = data.auctions.find((a) => a.cursedObjectId === obj.id && a.status === "open");
-        return (
-          <div key={obj.id}
-            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center">
+        {objetos.length === 0 && <p className="text-app-muted">No objects yet.</p>}
+        {objetos.map((obj) => (
+          <div
+            key={obj._id}
+            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex flex-wrap justify-between items-center gap-3"
+          >
             <div>
               <p className="text-app-text font-bold">{obj.name}</p>
               <p className="text-app-muted text-sm">
                 {obj.minBid} to {obj.maxBid}, {obj.durationDays} days
               </p>
             </div>
-            {!enSubasta && (
-              <button onClick={() => createAuction(obj.id)}
-                className="bg-gold-accent hover:bg-yellow-600 text-black font-semibold px-3 py-2 rounded-button">
-                Auction it
-              </button>
-            )}
+            <div className="flex gap-2">
+              {esMiembro && !estaEnSubasta(obj._id) && (
+                <button
+                  onClick={() => handleStartAuction(obj._id)}
+                  disabled={enviando}
+                  className="bg-gold-accent hover:bg-yellow-600 disabled:opacity-60 text-black font-semibold px-3 py-2 rounded-button"
+                >
+                  Start auction
+                </button>
+              )}
+              {puedeGestionar(obj) && (
+                <>
+                  <Link
+                    to={"/object/" + obj._id + "/edit"}
+                    className="border border-app-border text-app-text font-semibold px-3 py-2 rounded-button"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={() => handleDeleteObject(obj._id)}
+                    disabled={enviando}
+                    className="bg-blood-accent hover:opacity-80 disabled:opacity-60 text-white font-semibold px-3 py-2 rounded-button"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          );
-          })}
-          </>
-          )}
+        ))}
 
         <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Auctions</h2>
+        {subastas.length === 0 && <p className="text-app-muted">No auctions yet.</p>}
+        {subastas.map((subasta) => (
+          <Link key={subasta._id} to={"/auction/" + subasta._id} className="block">
+            <div className="bg-app-surface border border-app-border rounded-card p-4 mb-3 hover:shadow-card-hover transition-shadow">
+              <p className="text-app-text font-bold">{nombreObjeto(subasta)}</p>
+              <p className="text-app-muted">
+                {/* el estado puede ser open, closed o cancelled */}
+                {subasta.status === "closed"
+                  ? "Closed, won with " + subasta.winningBid
+                  : subasta.status}
+              </p>
+            </div>
+          </Link>
+        ))}
 
-        {/* mismo patron que los miembros: recorro y cruzo por id */}
-        {subastas.map((subasta) => {
-          //la subasta solo trae cursedObjectId, busco el objeto completo
-          const objeto = data.objects.find((o) => o.id === subasta.cursedObjectId);
-          return (
-            <Link key={subasta.id} to={"/auction/" + subasta.id} className="block">
-              <div className="bg-app-surface border border-app-border rounded-card p-4 mb-3 hover:shadow-card-hover transition-shadow">
-                <p className="text-app-text font-bold">{objeto?.name}</p>
-                <p className="text-app-muted">
-                  {/*si esta cerrada muestro el monto ganador, si no el estado */}
-                  {subasta.status === "closed"
-                    ? "Closed, won with " + subasta.winningBid
-                    : subasta.status}
-                </p>
+        {esMiembro && (
+          <>
+            <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Rankings</h2>
+            {tablas.map((t) => (
+              <div key={t.titulo} className="bg-app-surface border border-app-border rounded-card p-4 mb-3">
+                <p className="text-ember-accent font-bold mb-2">{t.titulo}</p>
+                {t.lista.slice(0, 3).map((s) => (
+                  <div key={s.userId} className="flex justify-between text-app-text">
+                    <span>{s.username}</span>
+                    <span className="text-app-muted">{t.dato(s)}</span>
+                  </div>
+                ))}
               </div>
-            </Link>
-          );
-        })}
-        <h2 className="text-2xl font-bold text-app-text mt-8 mb-3">Rankings</h2>
-
-        {(() => {const r = getHouseRankings(casa.id);
-        if (!r) return null;
-        const tabla = [
-       { titulo: "Worst Bidder", lista: r.worstBidder.slice(0, 3), campo: (s) => "avg " + s.avgBid.toFixed(1) },
-       { titulo: "Total Cursed", lista: r.totalCursed.slice(0, 3), campo: (s) => s.curses + " curses" },
-       { titulo: "Free Spirit", lista: r.freeSpirits.slice(0, 3), campo: () => "never won" },
-       { titulo: "Betting Prophet", lista: r.bettingProphet.slice(0, 3), campo: (s) => s.profit + " rep" },
-       ];
-       return tabla.map((t) => (<div key={t.titulo} className="bg-app-surface border border-app-border rounded-card p-4 mb-3">
-      <p className="text-ember-accent font-bold mb-2">{t.titulo}</p>
-      {t.lista.map((s) => (<div key={s.userId} className="flex justify-between text-app-text">
-          <span>{s.username}</span>
-          <span className="text-app-muted">{t.campo(s)}</span>
-        </div>
-      ))}
-      </div>
-      ));
-      })()}
+            ))}
+          </>
+        )}
       </main>
     </div>
   );
