@@ -2,7 +2,7 @@
 
 Backend de PhantomBids, una casa de subastas inversas de objetos embrujados. En cada subasta los usuarios pujan en secreto con un alias anonimo, gana la puja mas baja que nadie mas repitio, y al ganador le cae la maldicion del objeto.
 
-Proyecto de Ingenieria Web, Universidad EIA. Entrega 2: backend.
+Proyecto de Ingenieria Web, Universidad EIA. Esta carpeta es el backend del monorepo; el README de la raiz explica el proyecto completo.
 
 ## Enlaces
 
@@ -10,8 +10,9 @@ Proyecto de Ingenieria Web, Universidad EIA. Entrega 2: backend.
 |---|---|
 | API desplegada en Render | https://phantombids-back.onrender.com |
 | Documentacion Swagger | https://phantombids-back.onrender.com/api-docs |
-| Repositorio | https://github.com/samuel29-p/phantombids-back |
-| Coleccion de Postman | `PhantomBids.postman_collection.json` en la raiz del repositorio, se corre en orden con el Runner de Postman |
+| Front desplegado en Vercel | https://phantombids.vercel.app |
+| Repositorio | https://github.com/samuel29-p/Trabajo-Ingenieria-Web-Full-Stack |
+| Coleccion de Postman | `PhantomBids.postman_collection.json` en esta carpeta, se corre en orden con el Runner de Postman |
 
 El plan gratis de Render se duerme despues de 15 minutos sin uso, asi que la primera peticion puede tardar cerca de un minuto.
 
@@ -28,7 +29,7 @@ El plan gratis de Render se duerme despues de 15 minutos sin uso, asi que la pri
 ## Estructura del proyecto
 
 ```
-phantombids-back/
+backend/
   config/         conexion a MongoDB y configuracion de Swagger
   controllers/    reciben la peticion y devuelven la respuesta
   middlewares/    autenticar, autorizar, validadores, validarCampos y errorHandler
@@ -48,12 +49,12 @@ Cada peticion pasa por: ruta, middlewares (autenticar, autorizar y validaciones)
 1. Clonar el repositorio e instalar dependencias:
 
 ```
-git clone https://github.com/samuel29-p/phantombids-back.git
-cd phantombids-back
+git clone https://github.com/samuel29-p/Trabajo-Ingenieria-Web-Full-Stack.git
+cd Trabajo-Ingenieria-Web-Full-Stack/backend
 npm install
 ```
 
-2. Crear un archivo `.env` en la raiz, copiando `.env.example` y llenando los valores:
+2. Crear un archivo `.env` dentro de `backend`, copiando `.env.example` y llenando los valores:
 
 ```
 PORT=3000
