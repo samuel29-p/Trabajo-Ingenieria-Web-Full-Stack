@@ -31,10 +31,10 @@ function Navegacion() {
     links.push({ to: "/register", label: "Sign up", icon: <PiUserPlus className="text-xl" /> });
   }
 
-  //cerrar sesion borra el token y el usuario, y manda al login
+  //cerrar sesion manda al login y borra el token y el usuario
   function handleLogout() {
+    navigate("/login", { replace: true });
     dispatch(logout());
-    navigate("/login");
   }
 
   const renderLinks = links.map((link) => (
