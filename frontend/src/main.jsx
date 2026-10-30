@@ -5,6 +5,8 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { AppProvider } from "./context/AppContext.jsx";
+import { Provider } from "react-redux";
+import { store } from "./store/index.js";
 
 /* 
 1. Crear el contexto para el tema
@@ -24,12 +26,15 @@ Estado global sin prop drilling.
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrowserRouter>
-    <AppProvider>
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
-    </AppProvider>
-    </BrowserRouter>
+    {/* Provider le pasa el store de redux a toda la app */}
+    <Provider store={store}>
+      <BrowserRouter>
+        <AppProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AppProvider>
+      </BrowserRouter>
+    </Provider>
   </StrictMode>,
 );

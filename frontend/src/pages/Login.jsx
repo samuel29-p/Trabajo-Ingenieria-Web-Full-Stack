@@ -1,31 +1,49 @@
-import { useContext, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { AppContext } from "../context/AppContext.jsx";
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { login, limpiarError, selectAuthLoading, selectAuthError } from "../store/slices/authSlice";
+import ErrorMessage from "../components/ErrorMessage.jsx";
 
 function Login() {
-  const { login } = useContext(AppContext); //saco solo la funcion login del contexto
-  const navigate = useNavigate(); //sirve para mandar al usuario a otra ruta desde el codigo
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const loading = useSelector(selectAuthLoading);
+  const authError = useSelector(selectAuthError);
 
-  //un estado por cada campo del formulario (inputs controlados)
+  //un estado por cada campo del formulario, inputs controlados
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); //mensaje de error, vacio = no mostrar nada
+  const [errorLocal, setErrorLocal] = useState("");
 
-  function handleSubmit() {
-    const exito = login(email, password); //devuelve true o false
-    if (exito) {
-      navigate("/"); //si entro, lo mando al inicio
-    } else {
-      setError("Wrong email or password");
+  //si llego aqui porque intento entrar a una pagina privada, despues del login vuelve a esa pagina
+  const destino = location.state?.from?.pathname || "/";
+
+  async function handleSubmit(e) {
+    e.preventDefault(); //evita que el formulario recargue la pagina
+    setErrorLocal("");
+    dispatch(limpiarError());
+
+    //validaciones antes de molestar al backend
+    if (!email || !password) {
+      setErrorLocal("Please fill in your email and password");
+      return;
+    }
+
+    const resultado = await dispatch(login({ email: email.trim().toLowerCase(), password }));
+    if (login.fulfilled.match(resultado)) {
+      navigate(destino, { replace: true });
     }
   }
 
   return (
     <div className="min-h-screen bg-app-bg flex items-center justify-center px-4">
-      <div className="bg-app-surface border border-app-border rounded-card shadow-card p-8 w-full max-w-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-app-surface border border-app-border rounded-card shadow-card p-8 w-full max-w-sm"
+      >
         <h1 className="text-2xl font-bold text-app-text mb-6">Log in</h1>
 
-        {/* input controlado: value lo lee del estado, onChange lo escribe */}
         <input
           type="email"
           placeholder="Email"
@@ -42,14 +60,15 @@ function Login() {
           className="w-full border border-app-border rounded-button px-3 py-2 mb-3 bg-app-bg text-app-text"
         />
 
-        {/* el error solo se dibuja si tiene texto */}
-        {error && <p className="text-blood-accent mb-3">{error}</p>}
+        <ErrorMessage mensaje={errorLocal || authError} />
 
+        {/* mientras espera la respuesta el boton se desactiva y cambia el texto */}
         <button
-          onClick={handleSubmit}
-          className="w-full bg-ember-accent hover:bg-orange-600 text-white font-semibold py-2 rounded-button"
+          type="submit"
+          disabled={loading}
+          className="w-full bg-ember-accent hover:bg-orange-600 disabled:opacity-60 text-white font-semibold py-2 rounded-button"
         >
-          Enter
+          {loading ? "Entering..." : "Enter"}
         </button>
 
         <p className="text-app-muted text-sm mt-4">
@@ -58,7 +77,7 @@ function Login() {
             Sign up
           </Link>
         </p>
-      </div>
+      </form>
     </div>
   );
 }
