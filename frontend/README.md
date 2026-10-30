@@ -1,153 +1,104 @@
-# PhantomBids
+# PhantomBids Frontend
 
-Casa de subastas fantasma donde todo funciona al revés: el objeto embrujado se lo lleva quien menos dinero ofrece, pero la oferta debe ser única y nadie conoce las pujas de los demás hasta el cierre.
+Aplicacion en React de PhantomBids, conectada a la API del backend. Esta carpeta es el front del monorepo; el README de la raiz explica el proyecto completo, las URLs y las credenciales.
 
-**Proyecto 3, Ingeniería Web**
-Samuel Restrepo Zapata
-Universidad EIA
+- **Aplicacion desplegada:** https://phantombids.vercel.app
+- **API que consume:** https://phantombids-back.onrender.com/api
 
-Trabajo individual. Me basé en el repositorio base que compartió la profesora (taskflow-mini) para la configuración inicial y para reutilizar algunos componentes de interfaz.
+La aplicacion esta escrita en ingles para mantener un solo idioma entre el codigo y los textos de la interfaz. Los comentarios del codigo estan en espanol, para estudiar el proyecto y poder explicarlo en la sustentacion.
 
-La aplicación está escrita en inglés. Lo decidí así porque al estar aprendiendo React desde cero me confundía menos mantener un solo idioma entre el lenguaje de programación y los textos de la app. Los comentarios del código sí están en español: los escribí para estudiar el proyecto, entenderlo mejor, poder releerlo sin perderme y tener con qué explicarlo al momento de exponerlo.
+## Tecnologias
 
-## Stack
-
-- **React 19** con archivos `.jsx`
-- **Vite** como servidor de desarrollo y empaquetador
-- **react-router-dom v7** para las rutas
-- **Tailwind CSS v4** con variables de color propias definidas en `src/index.css`
+- **React 19** con archivos `.jsx`, y **Vite** como servidor de desarrollo y empaquetador
+- **React Router 7** para las rutas
+- **Redux Toolkit** y **react-redux** para la sesion del usuario
+- **Axios** para hablar con el backend
+- **Tailwind CSS 4** con variables de color propias en `src/index.css`
 - **react-icons** para los iconos
-- **Context API** para el estado global
-- **localStorage** para persistir los datos entre sesiones
 
-## Cómo correrlo
+## Instalacion local
 
-Se necesita Node.js 20 o superior.
+Se necesita Node.js 22 y el backend corriendo en local o el de Render.
 
-```bash
+1. Crear el archivo `.env` en esta carpeta, copiando `.env.example`:
+
+```
+VITE_API_URL=http://localhost:3000/api
+```
+
+2. Instalar y prender:
+
+```
 npm install
 npm run dev
 ```
 
-La aplicación queda en `http://localhost:5173/`.
+La aplicacion queda en http://localhost:5173. Para usar el backend de Render en vez del local, `VITE_API_URL` va con `https://phantombids-back.onrender.com/api`.
 
-Para volver a los datos semilla originales, en la consola del navegador:
-
-```js
-localStorage.clear()
-```
-
-Y recargar la página. Esto borra también la sesión, así que hay que volver a iniciar sesión.
-
-## Usuarios de prueba
-
-Los 12 usuarios semilla usan la contraseña `1234`. Estos tres son los más útiles para probar:
-
-| Email | Usuario | Rol |
-|---|---|---|
-| `vinland@phantom.com` | vinland | HeadHaunter de The Silent Crypt |
-| `newfoundland@phantom.com` | newfoundland | HeadHaunter de The Laughing Basement |
-| `cheeseburger@phantom.com` | cheeseburger | HeadHaunter de Room 13 |
-
-El código de invitación de Room 13, que es la casa privada, es `SALA13`.
-
-Solo el creador de una subasta o el HeadHaunter de la casa pueden cerrarla.
+| Comando | Que hace |
+|---|---|
+| `npm run dev` | Prende Vite con recarga automatica |
+| `npm run build` | Genera la version de produccion en `dist`, es la que usa Vercel |
+| `npm run preview` | Sirve en local lo que quedo en `dist` |
 
 ## Estructura
 
 ```
 src/
-├── data/        archivos de datos: seedData.js y Curses.js
-├── context/     AppContext.jsx (estado global) y ThemeContext.jsx (modo oscuro)
-├── pages/       una pantalla por ruta
-├── components/  piezas reutilizables (NavBar, Card, Badge, botones, inputs)
-├── App.jsx      el mapa de rutas
-└── main.jsx     el arranque de la aplicación
+  services/    api.js con la instancia de Axios, y un servicio por recurso del backend
+  store/       el store de Redux y authSlice con la sesion
+  components/  NavBar, PrivateRoute, AdminRoute, Loading, ErrorMessage, SuccessMessage, botones e inputs
+  pages/       una pantalla por ruta
+  context/     ThemeContext para el modo oscuro
+  utils/       mensajeError, que saca el mensaje de error que manda el backend
+  App.jsx      el mapa de rutas
+  main.jsx     el arranque, con el Provider de Redux y el router
 ```
 
-La regla que seguí: si el archivo dibuja algo en pantalla va en `pages` o `components` y termina en `.jsx`; si solo tiene datos o cálculos va en `data` y termina en `.js`.
+## Como se conecta con el backend
 
-## Dónde está cada requisito
+1. **`services/api.js`** crea una sola instancia de Axios con la URL de `VITE_API_URL`.
+2. **Interceptor de peticiones:** antes de que salga cada peticion le agrega `Authorization: Bearer <token>`, con el token guardado al iniciar sesion.
+3. **Interceptor de respuestas:** si el backend responde 401, borra la sesion y manda al login.
+4. **Servicios:** `authService`, `houseService`, `objectService`, `auctionService`, `curseService` y `userService`. Cada pagina llama la funcion que necesita, por ejemplo `houseService.getCasas()`.
+5. **Redux** guarda solo la sesion: el usuario, el token y si esta cargando. Los datos de casas, objetos y subastas los pide cada pagina al abrirse, porque solo esa pagina los usa.
+6. **Estados de carga y errores:** cada pagina muestra `Loading` mientras espera, `ErrorMessage` con el mensaje del backend cuando algo falla y `SuccessMessage` cuando una accion sale bien. Los formularios validan antes de enviar y desactivan el boton mientras esperan.
 
-### A. Autenticación y alias anónimos
+## Paginas y permisos
 
-| # | Requisito | Dónde |
+| Ruta | Pagina | Quien la ve |
 |---|---|---|
-| 1 | Registro, inicio y cierre de sesión | `AppContext.jsx`: `register`, `login`, `logout`. Pantallas `Register.jsx` y `Login.jsx` |
-| 2 | Perfil con username, email, reputación en 100, fecha de ingreso y avatar | `Profile.jsx`, objeto creado en `register` |
-| 3 | Alias anónimo temporal por subasta con formato `[Adjetivo]_[Número]` | `AppContext.jsx`: `getAlias` |
+| `/login`, `/register` | Inicio de sesion y registro | Todos |
+| `/curses` | Catalogo de las 8 maldiciones | Todos |
+| `/` | Casas de subastas | Con sesion |
+| `/create-house` | Crear una casa | Con sesion |
+| `/house/:id` | Casa: unirse, miembros, rankings, objetos y subastas | Con sesion, miembros y rankings solo para miembros |
+| `/house/:id/new-object` | Crear un objeto maldito | Miembros de la casa |
+| `/object/:id/edit` | Editar un objeto | Su creador o un admin |
+| `/auction/:id` | Subasta: pujar, apostar y cerrar | Con sesion, pujar y apostar solo miembros |
+| `/profile` | Perfil, registro de maldiciones y editar datos | Con sesion |
+| `/admin` | Administracion de usuarios y subastas | Solo admin |
 
-### B. Casas de subasta
+`PrivateRoute` manda al login a quien no tiene sesion, y `AdminRoute` ademas devuelve al inicio a quien no es admin. Los botones de borrar o cerrar solo aparecen para quien tiene permiso, y el backend vuelve a revisar todo con `autenticar` y `autorizar`.
 
-| # | Requisito | Dónde |
-|---|---|---|
-| 4 | Crear casa con nombre, tema, descripción e imagen | `AppContext.jsx`: `createHouse`. Pantalla `CreateHouse.jsx` |
-| 5 | Unirse: las públicas libres, las privadas con código | `AppContext.jsx`: `joinHouse`. Formulario en `House.jsx` |
-| 6 | Ver la lista de miembros | `House.jsx`, sección Members |
-| 7 | Roles HeadHaunter, SeniorSpook, Spirit y Poltergeist | Campo `role` dentro de `members`, visible en `House.jsx` |
+## Donde esta cada requisito del enunciado
 
-### C. Objetos malditos
+La logica vive en el backend y el front la muestra. Esta tabla dice en que pagina se ve cada requisito y en que archivo del backend se resuelve.
 
-| # | Requisito | Dónde |
-|---|---|---|
-| 8 | Crear objeto con sus rangos de puja y duración | `AppContext.jsx`: `createObject`. Pantalla `CreateObject.jsx` |
-| 9 | Las 8 maldiciones predefinidas | `data/Curses.js`, listadas en `CursesPage.jsx` |
+| # | Requisito | Pagina | Backend |
+|---|---|---|---|
+| 1 | Registro, inicio y cierre de sesion | `Login`, `Register`, `NavBar` | `authService.js` |
+| 2 | Perfil con reputacion que empieza en 100 | `Profile` | `models/User.js` |
+| 3 | Alias anonimo `Adjetivo_Numero` por subasta | `Auction` | `utils/alias.js` |
+| 4, 5 | Crear casas y unirse, con codigo si es privada | `CreateHouse`, `House` | `houseService.js` |
+| 6, 7 | Miembros con su nombre real y su rol | `House` | `houseService.js` |
+| 8, 9 | Objetos malditos y las 8 maldiciones | `CreateObject`, `EditObject`, `Curses` | `cursedObjectService.js`, `utils/curses.js` |
+| 10 a 14 | Una puja secreta por usuario, gana la mas baja y unica, sin unica se cancela | `Auction` | `bidService.js`, `closeService.js` |
+| 15 | Duplicados pierden 5 y quedan Poltergeist 48 horas | `Auction`, `House` | `closeService.js`, `utils/membresia.js` |
+| 16 a 19 | Apuestas sobre alias, cierran 1 hora antes y pagan el triple | `Auction` | `betService.js`, `closeService.js` |
+| 20 a 22 | Registro de maldiciones, permanentes y temporales | `Profile` | `closeService.js`, `curseLogService.js` |
+| 23 | Rankings de la casa | `House` | `rankingService.js` |
 
-### D. Subasta inversa secreta
+## Despliegue en Vercel
 
-| # | Requisito | Dónde |
-|---|---|---|
-| 10 | Una sola puja por usuario y por subasta | `AppContext.jsx`: validación dentro de `placeBid` |
-| 11 | La puja es un entero entre minBid y maxBid | `AppContext.jsx`: validación dentro de `placeBid` |
-| 12 | Gana la puja más baja y única | `AppContext.jsx`: `auctionWinner` |
-| 13 | Si no hay ninguna puja única, la subasta se cancela | `auctionWinner` devuelve `null` y `closeAuction` marca el estado como `cancelled` |
-| 14 | Las pujas son secretas hasta el cierre | `Auction.jsx`: solo se recorren y muestran cuando el estado deja de ser `open` |
-
-### E. Penalización por pujas duplicadas
-
-| # | Requisito | Dónde |
-|---|---|---|
-| 15 | Los que empatan pierden 5 de reputación y quedan como Poltergeist | `AppContext.jsx`: `getDuplicateBidders` y su aplicación dentro de `closeAuction` |
-
-### F. Sistema de apuestas paralelas
-
-| # | Requisito | Dónde |
-|---|---|---|
-| 16 | Apostar 5, 10, 25 o 50 puntos de reputación | `AppContext.jsx`: `placeBet` |
-| 17 | Se apuesta sobre alias, nunca sobre usernames reales | `placeBet` recibe `predictedAlias`; el desplegable de `Auction.jsx` solo ofrece alias |
-| 18 | Las apuestas cierran una hora antes del fin de la subasta | Validación de fecha dentro de `placeBet` |
-| 19 | Si acierta gana el triple, si falla pierde lo apostado | Resolución dentro de `closeAuction` |
-
-### G. Efectos post subasta
-
-| # | Requisito | Dónde |
-|---|---|---|
-| 20 | La maldición se aplica y queda en el registro del usuario | `closeAuction` agrega la entrada al `curseLog`, visible en `Profile.jsx` |
-| 21 | Los efectos de reputación son permanentes y los de permisos temporales | Campo `expiresAt`: queda en `null` para los permanentes y con fecha para los temporales |
-| 22 | Un usuario puede tener varias maldiciones a la vez | El `curseLog` es una lista y `Profile.jsx` filtra todas las del usuario |
-
-### H. Rankings
-
-| # | Requisito | Dónde |
-|---|---|---|
-| 23 | Worst Bidder, Total Cursed, Free Spirit y Betting Prophet | `AppContext.jsx`: `getHouseRankings`, mostrados al final de `House.jsx` |
-
-## Datos semilla
-
-Se cargan una sola vez, cuando `localStorage` está vacío. Incluyen 3 casas (Darkness, Comedy y Terror), 12 usuarios con las reputaciones que pide el enunciado, 8 objetos malditos, 6 subastas (3 abiertas, 2 cerradas con ganador y 1 cancelada), 25 pujas con varios escenarios de empate, 10 apuestas y 3 maldiciones ya aplicadas.
-
-Las fechas de cierre de las tres subastas abiertas no son fijas: se calculan al cargar los datos, con 30, 45 y 60 días de margen. Así siguen abiertas sin importar en qué fecha se revise el proyecto.
-
-## Decisiones de diseño
-
-**El alias determinista.** El enunciado pide un hash determinista, o sea que el mismo usuario en la misma subasta siempre debe producir el mismo alias. Si fuera aleatorio, el alias cambiaría en cada redibujado de la pantalla y no se podría apostar sobre él. La función combina el id del usuario y el de la subasta, multiplicando por números primos para separar los resultados, y usa el módulo sobre la cantidad de adjetivos para escoger uno. Meter el id de la subasta en la cuenta es lo que hace que el mismo usuario tenga alias distinto en subastas distintas, que es lo que protege el anonimato.
-
-**El cálculo del ganador.** No basta con buscar el menor de todos, porque el menor puede estar repetido y quedar descalificado. Tampoco basta con buscar el que menos se repite, porque puede haber varios empatados en una sola aparición. Son dos pasos en orden: primero contar apariciones y descartar los montos que salen más de una vez, y solo después tomar el mínimo de los que sobrevivieron.
-
-**Un solo setData al cerrar una subasta.** Cerrar una subasta toca cuatro partes de los datos a la vez: el estado de la subasta, la reputación de los usuarios, el registro de maldiciones y las apuestas. Todo se calcula primero en variables y se guarda con una sola llamada. Con cuatro llamadas seguidas, las tres últimas leerían el estado viejo, porque React no lo actualiza hasta el siguiente dibujado, y los cambios se pisarían entre sí.
-
-**Las entidades se conectan por id.** Ninguna entidad guarda otra adentro: una puja no contiene al usuario completo, solo su `userId`. Así la reputación vive en un solo lugar y no hay que actualizarla en copias regadas por todos lados. Es la misma idea de una llave foránea.
-
-**El estado se reemplaza, no se modifica.** Nunca se hace `push` ni se cambia un campo directamente. Siempre se crea un objeto o arreglo nuevo con el operador spread, porque React solo vuelve a dibujar cuando detecta que la referencia cambió.
-
-**Los mensajes de error los arma la pantalla, salvo cuando hay muchos casos.** Funciones con una sola condición de fallo, como `login`, devuelven `true` o `false` y la pantalla decide qué texto mostrar. Funciones con varias razones distintas de fallo, como `placeBid` o `placeBet`, devuelven directamente el mensaje, porque solo ellas saben cuál de las validaciones fue la que no pasó.
+El proyecto de Vercel usa esta carpeta como Root Directory y tiene la variable `VITE_API_URL` apuntando a Render. Las variables que empiezan por `VITE_` se meten en el codigo al compilar, asi que si cambia hay que volver a desplegar. El archivo `vercel.json` manda todas las rutas a `index.html`, para que al recargar una pagina como `/house/123` no salga un 404.
