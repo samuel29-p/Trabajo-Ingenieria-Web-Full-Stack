@@ -1,9 +1,9 @@
-﻿const Bet = require("../models/Bet");
+const Bet = require("../models/Bet");
 const Bid = require("../models/Bid");
 const Auction = require("../models/Auction");
 const User = require("../models/User");
-const CurseLog = require("../models/CurseLog");
 const { buscarCasaYMiembro } = require("../utils/membresia");
+const { tieneMaldicionActiva } = require("../utils/maldicionActiva");
 
 //apuesta reputacion a que un alias va a ganar la subasta
 async function apostar(auctionId, datos, usuario) {
@@ -15,15 +15,19 @@ async function apostar(auctionId, datos, usuario) {
     throw { status: 409, message: "Solo se puede apostar en subastas abiertas" };
   }
 
+  //las apuestas cierran una hora antes de que termine la subasta, requisito 18
+  const limite = new Date(subasta.endsAt.getTime() - 60 * 60 * 1000);
+  if (new Date() > limite) {
+    throw { status: 409, message: "Las apuestas cierran una hora antes del final de la subasta" };
+  }
+
   const { miembro } = await buscarCasaYMiembro(subasta.hauntHouseId, usuario._id);
   if (!miembro) {
     throw { status: 403, message: "Debes ser miembro de la casa para apostar" };
   }
 
   //la maldicion blind eye no deja apostar mientras no haya vencido
-  const ahora = new Date();
-  const maldiciones = await CurseLog.find({ userId: usuario._id, curse: "CANNOT_BET_48_HOURS" });
-  const castigado = maldiciones.some((m) => m.expiresAt && m.expiresAt > ahora);
+  const castigado = await tieneMaldicionActiva(usuario._id, "CANNOT_BET_48_HOURS");
   if (castigado) {
     throw { status: 403, message: "Tienes la maldicion Blind Eye, no puedes apostar por ahora" };
   }

@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const { body, param, query } = require("express-validator");
 const autenticar = require("../middlewares/autenticar");
 const autorizar = require("../middlewares/autorizar");
@@ -110,7 +110,7 @@ router.delete("/:id", autorizar("admin"), validarId, validarCampos, controller.e
  * @swagger
  * /api/auctions/{id}/close:
  *   post:
- *     summary: Cierra la subasta, gana la puja mas baja y unica, castiga duplicados, aplica la maldicion y resuelve apuestas
+ *     summary: Cierra la subasta, gana la puja mas baja y unica, si no hay ninguna unica queda cancelada, castiga duplicados, aplica la maldicion y resuelve apuestas
  *     tags: [Auctions]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     responses:
@@ -151,6 +151,19 @@ router.get("/:id/bids", validarId, validarCampos, bidController.listar);
 
 /**
  * @swagger
+ * /api/auctions/{id}/bids/me:
+ *   get:
+ *     summary: Devuelve la puja propia en la subasta, con su alias y su monto, o null si todavia no ha pujado
+ *     tags: [Auctions]
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+ *     responses:
+ *       "200": { description: La puja propia o null }
+ *       "404": { description: Subasta no encontrada }
+ */
+router.get("/:id/bids/me", validarId, validarCampos, bidController.miPuja);
+
+/**
+ * @swagger
  * /api/auctions/{id}/bets:
  *   get:
  *     summary: Lista las apuestas de la subasta, sin mostrar quien aposto
@@ -159,7 +172,7 @@ router.get("/:id/bids", validarId, validarCampos, bidController.listar);
  *     responses:
  *       "200": { description: Lista de apuestas }
  *   post:
- *     summary: Apuesta 5, 10, 25 o 50 de reputacion a que un alias gana
+ *     summary: Apuesta 5, 10, 25 o 50 de reputacion a que un alias gana, cierra una hora antes del final y paga el triple
  *     tags: [Auctions]
  *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
  *     requestBody:
@@ -172,7 +185,7 @@ router.get("/:id/bids", validarId, validarCampos, bidController.listar);
  *       "400": { description: Monto invalido, sin reputacion suficiente o es tu propio alias }
  *       "403": { description: No eres miembro o tienes la maldicion Blind Eye }
  *       "404": { description: Ese alias no tiene pujas en la subasta }
- *       "409": { description: Ya apostaste o la subasta no esta abierta }
+ *       "409": { description: Ya apostaste, la subasta no esta abierta o falta menos de una hora para el cierre }
  */
 //las apuestas tambien viven dentro de una subasta
 router.post("/:id/bets", validarId, validarApuesta, validarCampos, betController.apostar);

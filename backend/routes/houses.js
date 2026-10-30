@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const router = express.Router();
 const autenticar = require("../middlewares/autenticar");
 const autorizar = require("../middlewares/autorizar");
@@ -18,6 +18,7 @@ const {
   unirseCasa,
   obtenerMiembros,
 } = require("../controllers/houseController");
+const { obtenerRankings } = require("../controllers/rankingController");
 
 /**
  * @swagger
@@ -112,5 +113,18 @@ router.post("/:id/join", autenticar, validarIdParam, validarUnirseCasa, validarC
  *       "403": { description: Solo los miembros pueden verla }
  */
 router.get("/:id/members", autenticar, validarIdParam, validarCampos, obtenerMiembros);
+
+/**
+ * @swagger
+ * /api/houses/{id}/rankings:
+ *   get:
+ *     summary: Los cuatro rankings de la casa, peor pujador, mas maldito, espiritus libres y profeta de apuestas (solo miembros o admin)
+ *     tags: [Houses]
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+ *     responses:
+ *       "200": { description: Los cuatro rankings }
+ *       "403": { description: Solo los miembros o un admin pueden verlos }
+ */
+router.get("/:id/rankings", autenticar, validarIdParam, validarCampos, obtenerRankings);
 
 module.exports = router;

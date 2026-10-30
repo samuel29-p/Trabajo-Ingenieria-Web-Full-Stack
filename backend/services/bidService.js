@@ -1,8 +1,9 @@
-﻿const Bid = require("../models/Bid");
+const Bid = require("../models/Bid");
 const Auction = require("../models/Auction");
 const CursedObject = require("../models/CursedObject");
 const { buscarCasaYMiembro } = require("../utils/membresia");
 const { getAlias } = require("../utils/alias");
+const { tieneMaldicionActiva } = require("../utils/maldicionActiva");
 
 async function buscarSubasta(auctionId) {
   const subasta = await Auction.findById(auctionId);
@@ -33,6 +34,12 @@ async function pujar(auctionId, amount, usuario) {
     throw { status: 403, message: "Los Poltergeist no pueden pujar" };
   }
 
+  //la maldicion spectral gag no deja pujar mientras no haya vencido
+  const castigado = await tieneMaldicionActiva(usuario._id, "CANNOT_BID_2_AUCTIONS");
+  if (castigado) {
+    throw { status: 403, message: "Tienes la maldicion Spectral Gag, no puedes pujar por ahora" };
+  }
+
   const yaPujo = await Bid.findOne({ auctionId: subasta._id, userId: usuario._id });
   if (yaPujo) {
     throw { status: 409, message: "Ya hiciste tu puja secreta en esta subasta" };
@@ -50,12 +57,14 @@ async function pujar(auctionId, amount, usuario) {
     };
   }
 
-  //el alias lo pone el servidor, si por casualidad otro ya lo tiene se le agrega un numero
-  let alias = getAlias(subasta._id, usuario._id);
-  const aliasRepetido = await Bid.findOne({ auctionId: subasta._id, alias: alias });
-  if (aliasRepetido) {
-    const cantidad = await Bid.countDocuments({ auctionId: subasta._id });
-    alias = alias + " " + (cantidad + 1);
+  //el alias lo pone el servidor, si por casualidad otro ya lo tiene se prueba con el siguiente
+  let intento = 0;
+  let alias = getAlias(subasta._id, usuario._id, intento);
+  let aliasRepetido = await Bid.findOne({ auctionId: subasta._id, alias: alias });
+  while (aliasRepetido) {
+    intento = intento + 1;
+    alias = getAlias(subasta._id, usuario._id, intento);
+    aliasRepetido = await Bid.findOne({ auctionId: subasta._id, alias: alias });
   }
 
   return Bid.create({
@@ -77,4 +86,11 @@ async function listar(auctionId) {
   return Bid.find({ auctionId: subasta._id }).select("alias amount createdAt").sort({ amount: 1 });
 }
 
-module.exports = { pujar, listar };
+//la puja del usuario que pregunta, para que sepa con que alias y cuanto pujo
+//si todavia no ha pujado devuelve null
+async function miPuja(auctionId, usuario) {
+  const subasta = await buscarSubasta(auctionId);
+  return Bid.findOne({ auctionId: subasta._id, userId: usuario._id });
+}
+
+module.exports = { pujar, listar, miPuja };

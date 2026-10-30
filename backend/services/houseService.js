@@ -1,4 +1,5 @@
-﻿const HauntHouse = require("../models/HauntHouse");
+const HauntHouse = require("../models/HauntHouse");
+const { levantarCastigos } = require("../utils/membresia");
 
 //arma un codigo de 6 caracteres al azar para las casas privadas
 function generarCodigoInvitacion() {
@@ -35,6 +36,7 @@ async function obtenerCasaPorId(id) {
   if (!casa) {
     throw { status: 404, message: "Casa no encontrada" };
   }
+  await levantarCastigos(casa);
   return casa;
 }
 
@@ -89,15 +91,25 @@ async function unirseCasa(id, usuarioId, codigoIngresado) {
   return casa;
 }
 
-async function obtenerMiembros(id, usuarioId) {
+async function obtenerMiembros(id, usuarioActual) {
   const casa = await obtenerCasaPorId(id);
 
-  const esMiembro = obtenerMiembro(casa, usuarioId);
-  if (!esMiembro) {
+  const esMiembro = obtenerMiembro(casa, usuarioActual._id);
+  if (!esMiembro && usuarioActual.role !== "admin") {
     throw { status: 403, message: "Solo los miembros de esta casa pueden ver quien esta en ella" };
   }
 
-  return casa.members;
+  //populate cambia cada userId por los datos del usuario, asi se ve el nombre real, requisito 6
+  await casa.populate("members.userId", "username avatarUrl reputation");
+  return casa.members.map((m) => ({
+    userId: m.userId ? m.userId._id : null,
+    username: m.userId ? m.userId.username : "Usuario eliminado",
+    avatarUrl: m.userId ? m.userId.avatarUrl : "",
+    reputation: m.userId ? m.userId.reputation : 0,
+    role: m.role,
+    joinedAt: m.joinedAt,
+    poltergeistUntil: m.poltergeistUntil,
+  }));
 }
 
 module.exports = {
