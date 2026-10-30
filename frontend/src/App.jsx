@@ -11,6 +11,7 @@ import Profile from "./pages/Profile.jsx";
 import CursesPage from "./pages/CursesPage.jsx";
 import CreateHouse from "./pages/CreateHouse.jsx";
 import CreateObject from "./pages/CreateObject.jsx";
+import PrivateRoute from "./components/PrivateRoute.jsx";
 
 /* Existen 2 tipos de aplicativos web
 1. los spa : Single page application.  **ESTE ES EL QUE USAMOS**
@@ -22,16 +23,17 @@ function App() {
     <div className={`${theme === "dark" ? "dark" : ""}`}>
       {/* cada Route es una pareja: direccion y pantalla que se dibuja */}
       {/* los :id son parametros, se leen con useParams dentro de la pagina */}
+      {/* las rutas envueltas en PrivateRoute solo se ven con sesion iniciada */}
       <Routes>
-        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<Profile />} />
         <Route path="/curses" element={<CursesPage />} />
-        <Route path="/house/:id" element={<House />} />
-        <Route path="/auction/:id" element={<Auction />} />
-        <Route path="/create-house" element={<CreateHouse />} />
-        <Route path="/house/:id/new-object" element={<CreateObject />} />
+        <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+        <Route path="/house/:id" element={<PrivateRoute><House /></PrivateRoute>} />
+        <Route path="/auction/:id" element={<PrivateRoute><Auction /></PrivateRoute>} />
+        <Route path="/create-house" element={<PrivateRoute><CreateHouse /></PrivateRoute>} />
+        <Route path="/house/:id/new-object" element={<PrivateRoute><CreateObject /></PrivateRoute>} />
       </Routes>
     </div>
   );

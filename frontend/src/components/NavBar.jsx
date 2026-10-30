@@ -1,7 +1,7 @@
-import { NavLink } from "react-router-dom";
-import { useContext } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import ButtonTheme from "../components/buttons/ButtonTheme";
-import { AppContext } from "../context/AppContext.jsx";
+import { logout, selectUser } from "../store/slices/authSlice";
 import {
   PiHouse,
   PiSignIn,
@@ -12,7 +12,10 @@ import {
 } from "react-icons/pi";
 
 function Navegacion() {
-  const { currentUser, logout } = useContext(AppContext);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  //el usuario sale del store de redux, si es null es porque nadie inicio sesion
+  const currentUser = useSelector(selectUser);
 
   //los links que ve todo el mundo
   const links = [
@@ -21,7 +24,6 @@ function Navegacion() {
   ];
 
   //si hay sesion abierta muestro Profile, si no muestro Log in y Sign up
-  //push agrega al final del arreglo
   if (currentUser) {
     links.push({ to: "/profile", label: "Profile", icon: <PiUser className="text-xl" /> });
   } else {
@@ -29,7 +31,12 @@ function Navegacion() {
     links.push({ to: "/register", label: "Sign up", icon: <PiUserPlus className="text-xl" /> });
   }
 
-  //recorro el arreglo y convierto cada objeto en un link de pantalla
+  //cerrar sesion borra el token y el usuario, y manda al login
+  function handleLogout() {
+    dispatch(logout());
+    navigate("/login");
+  }
+
   const renderLinks = links.map((link) => (
     <NavLink
       key={link.to}
@@ -45,21 +52,26 @@ function Navegacion() {
 
   return (
     <nav className="bg-blood-soft px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-card transition-colors duration-300">
-      <p className="text-6xl text-center text-blood-accent font-extrabold w-full tracking-wider">
+      <p className="text-4xl sm:text-6xl text-center text-blood-accent font-extrabold w-full tracking-wider">
         PHANTOMBIDS
       </p>
 
-      <div className="mx-auto text-center flex items-center gap-1 flex-wrap">
+      <div className="mx-auto text-center flex items-center gap-1 flex-wrap justify-center">
         {renderLinks}
 
-        {/* el boton de salir solo aparece si hay alguien conectado */}
+        {/* el boton de salir y la reputacion solo aparecen si hay alguien conectado */}
         {currentUser && (
-          <button
-            onClick={logout}
-            className="font-semibold px-3 py-2 text-app-muted rounded-button hover:bg-white/5 flex items-center gap-2"
-          >
-            <PiSignOut className="text-xl" /> Log out
-          </button>
+          <>
+            <span className="px-3 py-2 text-app-muted text-sm">
+              {currentUser.username} · {currentUser.reputation} rep
+            </span>
+            <button
+              onClick={handleLogout}
+              className="font-semibold px-3 py-2 text-app-muted rounded-button hover:bg-white/5 flex items-center gap-2"
+            >
+              <PiSignOut className="text-xl" /> Log out
+            </button>
+          </>
         )}
       </div>
 
