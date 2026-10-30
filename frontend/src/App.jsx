@@ -11,7 +11,10 @@ import Profile from "./pages/Profile.jsx";
 import CursesPage from "./pages/CursesPage.jsx";
 import CreateHouse from "./pages/CreateHouse.jsx";
 import CreateObject from "./pages/CreateObject.jsx";
+import EditObject from "./pages/EditObject.jsx";
+import Admin from "./pages/Admin.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
+import AdminRoute from "./components/AdminRoute.jsx";
 
 /* Existen 2 tipos de aplicativos web
 1. los spa : Single page application.  **ESTE ES EL QUE USAMOS**
@@ -34,6 +37,9 @@ function App() {
         <Route path="/auction/:id" element={<PrivateRoute><Auction /></PrivateRoute>} />
         <Route path="/create-house" element={<PrivateRoute><CreateHouse /></PrivateRoute>} />
         <Route path="/house/:id/new-object" element={<PrivateRoute><CreateObject /></PrivateRoute>} />
+        <Route path="/object/:id/edit" element={<PrivateRoute><EditObject /></PrivateRoute>} />
+        {/* la ruta de admin ademas revisa que el rol sea admin */}
+        <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
       </Routes>
     </div>
   );
