@@ -1,208 +1,381 @@
+import { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import NavBar from "../components/NavBar.jsx";
-import { useContext, useState } from "react";
-import { AppContext } from "../context/AppContext.jsx";
-import { useParams, Link } from "react-router-dom";
+import Badge from "../components/Badge.jsx";
+import Loading from "../components/Loading.jsx";
+import ErrorMessage from "../components/ErrorMessage.jsx";
+import SuccessMessage from "../components/SuccessMessage.jsx";
+import { auctionService } from "../services/auctionService";
+import { objectService } from "../services/objectService";
+import { houseService } from "../services/houseService";
+import { selectUser, selectIsAdmin, recargarPerfil } from "../store/slices/authSlice";
+import { mensajeError } from "../utils/mensajeError";
+
+//color de la etiqueta segun el estado de la subasta
+const COLOR_ESTADO = { open: "green", closed: "gold", cancelled: "blood" };
 
 function Auction() {
-  const { data, currentUser, placeBid, closeAuction, placeBet } = useContext(AppContext);
-  const { id } = useParams(); //el id que viene en la direccion, como texto
+  const { id } = useParams(); //el id de la subasta que viene en la direccion
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const user = useSelector(selectUser);
+  const isAdmin = useSelector(selectIsAdmin);
 
-  const [amount, setAmount] = useState("");
-  const [bidError, setBidError] = useState("");
-  const [betAlias, setBetAlias] = useState("");
-  const [betAmount, setBetAmount] = useState("10");
-  const [betError, setBetError] = useState("");
+  //todo lo que se pide al backend para dibujar la pagina
+  const [subasta, setSubasta] = useState(null);
+  const [objeto, setObjeto] = useState(null);
+  const [casa, setCasa] = useState(null);
+  const [pujas, setPujas] = useState([]);
+  const [miPuja, setMiPuja] = useState(null);
+  const [apuestas, setApuestas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  //Number(id) porque useParams devuelve texto y los ids son numeros
-  const auction = data.auctions.find((a) => a.id === Number(id));
+  //estado de cada formulario, con su propio mensaje de error o de exito
+  const [monto, setMonto] = useState("");
+  const [aliasApuesta, setAliasApuesta] = useState("");
+  const [montoApuesta, setMontoApuesta] = useState("10");
+  const [enviando, setEnviando] = useState(false);
+  const [errorAccion, setErrorAccion] = useState("");
+  const [exito, setExito] = useState("");
+  const [resultado, setResultado] = useState(null);
 
-  //salida temprana: si no existe, muestro un mensaje y no sigo
-  if (!auction) {
-    return <p className="p-8 text-app-text">That auction does not exist.</p>;
+  //recargas es un contador, cada vez que sube el efecto vuelve a pedir todo al backend
+  //se sube despues de pujar, apostar o cerrar, para ver los datos nuevos
+  const [recargas, setRecargas] = useState(0);
+  //la hora del momento en que llegaron los datos, para saber si las apuestas siguen abiertas
+  const [ahora, setAhora] = useState(0);
+
+  useEffect(() => {
+    async function cargar() {
+      try {
+        const datosSubasta = await auctionService.getSubasta(id);
+        setSubasta(datosSubasta);
+        setCasa(await houseService.getCasa(datosSubasta.hauntHouseId));
+        setPujas(await auctionService.getPujas(id));
+        setMiPuja(await auctionService.miPuja(id));
+        setApuestas(await auctionService.getApuestas(id));
+        //el objeto puede haber sido borrado, en ese caso la subasta se sigue mostrando sin el
+        try {
+          setObjeto(await objectService.getObjeto(datosSubasta.cursedObjectId));
+        } catch {
+          setObjeto(null);
+        }
+        setAhora(Date.now());
+        setError("");
+      } catch (err) {
+        setError(mensajeError(err, "Could not load the auction"));
+      } finally {
+        setLoading(false);
+      }
+    }
+    cargar();
+  }, [id, recargas]);
+
+  //limpia los mensajes antes de cada accion
+  function empezarAccion() {
+    setErrorAccion("");
+    setExito("");
+    setEnviando(true);
   }
 
-  //la subasta solo guarda el id del objeto, busco el objeto completo
-  const auctionObject = data.objects.find((o) => o.id === auction.cursedObjectId);
-  //y lo mismo con la casa donde se hace la subasta
-  const auctionHouse = data.houses.find((h) => h.id === auction.hauntHouseId);
-
-
-  //las pujas de esta subasta (requisito 14: solo se muestran si ya cerro)
-  const bids = data.bids.filter((b) => b.auctionId === auction.id);
-
-  //si el usuario conectado ya pujo, le muestro su puja en vez del formulario
-  const myBid = bids.find((b) => b.userId === currentUser?.id);
-
-
-  //las apuestas de esta subasta
-  const bets = data.bets.filter((b) => b.auctionId === auction.id);
-  const myBet = bets.find((b) => b.bettorId === currentUser?.id);
-
-  //los alias sobre los que se puede apostar, sin el propio
-  const aliases = bids
-  .filter((b) => b.userId !== currentUser?.id)
-  .map((b) => b.alias);
-
-  function handleBet() {
-  const mensaje = placeBet(auction.id, betAlias, betAmount);
-  setBetError(mensaje || "");
+  async function handlePujar(e) {
+    e.preventDefault();
+    const numero = Number(monto);
+    //la misma regla del backend, asi el usuario ve el error sin esperar
+    if (!Number.isInteger(numero) || numero < objeto.minBid || numero > objeto.maxBid) {
+      setErrorAccion("The bid must be a whole number between " + objeto.minBid + " and " + objeto.maxBid);
+      return;
+    }
+    empezarAccion();
+    try {
+      const puja = await auctionService.pujar(id, numero);
+      setExito("Your secret bid is in. Your alias in this auction is " + puja.alias);
+      setMonto("");
+      setRecargas((n) => n + 1);
+    } catch (err) {
+      setErrorAccion(mensajeError(err, "Could not place the bid"));
+    } finally {
+      setEnviando(false);
+    }
   }
 
-  function handleBid() {
-  const mensaje = placeBid(auction.id, amount);
-  setBidError(mensaje || ""); //si devolvio null, limpio el error
-  if (!mensaje) setAmount("");
+  async function handleApostar(e) {
+    e.preventDefault();
+    if (!aliasApuesta) {
+      setErrorAccion("Pick an alias to bet on");
+      return;
+    }
+    empezarAccion();
+    try {
+      await auctionService.apostar(id, aliasApuesta, Number(montoApuesta));
+      setExito("You bet " + montoApuesta + " reputation on " + aliasApuesta);
+      setAliasApuesta("");
+      //apostar descuenta reputacion, por eso se recarga el perfil de la barra
+      dispatch(recargarPerfil());
+      setRecargas((n) => n + 1);
+    } catch (err) {
+      setErrorAccion(mensajeError(err, "Could not place the bet"));
+    } finally {
+      setEnviando(false);
+    }
   }
+
+  async function handleCerrar() {
+    if (!window.confirm("Close the auction now? This reveals every bid and applies the curse.")) return;
+    empezarAccion();
+    try {
+      const datos = await auctionService.cerrarSubasta(id);
+      setResultado(datos);
+      dispatch(recargarPerfil());
+      setRecargas((n) => n + 1);
+    } catch (err) {
+      setErrorAccion(mensajeError(err, "Could not close the auction"));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function handleEliminar() {
+    if (!window.confirm("Delete this auction with all its bids and bets?")) return;
+    empezarAccion();
+    try {
+      await auctionService.eliminarSubasta(id);
+      navigate("/house/" + subasta.hauntHouseId);
+    } catch (err) {
+      setErrorAccion(mensajeError(err, "Could not delete the auction"));
+      setEnviando(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-app-bg">
+        <NavBar />
+        <main className="container mx-auto px-4 py-8">
+          <Loading texto="Loading the auction..." />
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !subasta) {
+    return (
+      <div className="min-h-screen bg-app-bg">
+        <NavBar />
+        <main className="container mx-auto px-4 py-8">
+          <ErrorMessage mensaje={error || "That auction does not exist."} />
+          <Link to="/" className="text-ember-accent">Back to the houses</Link>
+        </main>
+      </div>
+    );
+  }
+
+  //quien es el usuario dentro de esta casa, los ids de mongo llegan como texto
+  const miembro = casa?.members.find((m) => m.userId === user._id);
+  const esCreador = subasta.createdBy === user._id;
+  const abierta = subasta.status === "open";
+  //las apuestas cierran una hora antes del final, requisito 18
+  const apuestasAbiertas = abierta && new Date(subasta.endsAt).getTime() - 60 * 60 * 1000 > ahora;
+  //se apuesta a los alias de los demas, nunca al propio
+  const aliasDeOtros = pujas.map((p) => p.alias).filter((alias) => alias !== miPuja?.alias);
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
       <NavBar />
-      <main className="container mx-auto px-4 py-8">
-        {/* link de vuelta a la casa, para no tener que usar el boton atras */}
-        <Link to={"/house/" + auction.hauntHouseId} className="text-ember-accent">
-          {auctionHouse?.name}
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
+        <Link to={"/house/" + subasta.hauntHouseId} className="text-ember-accent">
+          ← {casa?.name || "Back to the house"}
         </Link>
 
-        <h1 className="text-3xl font-bold text-app-text mt-2">{auctionObject?.name}</h1>
-        <p className="text-app-muted mb-4">{auctionObject?.description}</p>
-
-        <img
-          src={auctionObject?.imageUrl}
-          alt={auctionObject?.name}
-          className="w-64 rounded-card mb-4"
-        />
-
-        <p className="text-app-text">
-          Bid between {auctionObject?.minBid} and {auctionObject?.maxBid}
-        </p>
-        <p className="text-app-muted">Status: {auction.status}</p>
-        <p className="text-app-muted">Ends on {auction.endsAt}</p>
-
-        {/* requisito 14: las pujas son secretas hasta que la subasta cierra */}
-        {auction.status === "open" && (
-        <div className="mt-6">
-        <h2 className="text-2xl font-bold text-app-text mb-3">Place your bid</h2>
-
-        {!currentUser && (
-        <p className="text-app-muted">Log in to bid.</p>
-        )}
-
-        {currentUser && myBid && (
-        <p className="text-app-text">
-        You already bid as <span className="text-ember-accent">{myBid.alias}</span>.
-        Your bid stays secret until the auction closes.
-        </p>
-        )}
-
-        {currentUser && !myBid && (
-        <div>
-        <input
-          type="number"
-          placeholder={"Between " + auctionObject.minBid + " and " + auctionObject.maxBid}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text"
-        />
-        <button
-          onClick={handleBid}
-          className="bg-ember-accent hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-button"
-        >
-          Bid
-        </button>
-        {bidError && <p className="text-blood-accent mt-2">{bidError}</p>}
+        <div className="flex flex-col sm:flex-row gap-6 mt-4">
+          {objeto?.imageUrl && (
+            <img src={objeto.imageUrl} alt={objeto.name} className="w-full sm:w-56 h-56 object-cover rounded-card" />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-app-text">{objeto?.name || "Deleted object"}</h1>
+            <p className="text-app-muted mb-3">{objeto?.description}</p>
+            <Badge variant={COLOR_ESTADO[subasta.status]}>{subasta.status}</Badge>
+            {objeto && (
+              <p className="text-app-text mt-3">
+                Bids between {objeto.minBid} and {objeto.maxBid}
+              </p>
+            )}
+            <p className="text-app-muted">Ends on {new Date(subasta.endsAt).toLocaleString()}</p>
+            <p className="text-app-muted">{pujas.length} secret bids · {apuestas.length} side bets</p>
+          </div>
         </div>
+
+        <ErrorMessage mensaje={errorAccion} />
+        <SuccessMessage mensaje={exito} />
+
+        {/* el resultado del cierre que devuelve el backend, solo justo despues de cerrar */}
+        {resultado && (
+          <div className="bg-app-surface border border-gold-accent rounded-card p-4 my-4">
+            <h2 className="text-xl font-bold text-gold-accent mb-2">Auction result</h2>
+            {resultado.ganador ? (
+              <p className="text-app-text">
+                {resultado.ganador.alias} wins with {resultado.ganador.amount} and receives the curse{" "}
+                {resultado.maldicion?.name}.
+              </p>
+            ) : (
+              <p className="text-app-text">There was no unique bid, so the auction was cancelled.</p>
+            )}
+            {resultado.duplicados.length > 0 && (
+              <p className="text-blood-accent mt-1">
+                Duplicated bids: {resultado.duplicados.map((d) => d.alias + " (" + d.amount + ")").join(", ")}. They lose 5
+                reputation and become Poltergeist for 48 hours.
+              </p>
+            )}
+            <p className="text-app-muted mt-1">{resultado.apuestasResueltas} bets were resolved.</p>
+          </div>
         )}
 
-        <p className="text-app-muted mt-3">{bids.length} secret bids so far</p>
-        </div>
+        {/* subasta abierta, el formulario de puja secreta */}
+        {abierta && (
+          <section className="mt-8">
+            <h2 className="text-2xl font-bold text-app-text mb-3">Your secret bid</h2>
+            {!miembro && <p className="text-app-muted">Join the house to bid in this auction.</p>}
+            {miembro && miembro.role === "Poltergeist" && (
+              <p className="text-blood-accent">Poltergeists cannot bid until their punishment ends.</p>
+            )}
+            {miPuja && (
+              <p className="text-app-text">
+                You bid {miPuja.amount} as <span className="text-ember-accent font-semibold">{miPuja.alias}</span>. It
+                stays secret until the auction closes.
+              </p>
+            )}
+            {miembro && miembro.role !== "Poltergeist" && !miPuja && objeto && (
+              <form onSubmit={handlePujar} className="flex flex-wrap gap-2">
+                <input
+                  type="number"
+                  placeholder={"Between " + objeto.minBid + " and " + objeto.maxBid}
+                  value={monto}
+                  onChange={(e) => setMonto(e.target.value)}
+                  className="border border-app-border rounded-button px-3 py-2 bg-app-bg text-app-text"
+                />
+                <button
+                  type="submit"
+                  disabled={enviando}
+                  className="bg-ember-accent hover:bg-orange-600 disabled:opacity-60 text-white font-semibold px-4 py-2 rounded-button"
+                >
+                  {enviando ? "Sending..." : "Bid"}
+                </button>
+              </form>
+            )}
+          </section>
         )}
 
-        {/* si ya cerro, se revelan todas las pujas con sus alias */}
-        {auction.status !== "open" && (
-        <div className="mt-6">
-        <h2 className="text-2xl font-bold text-app-text mb-3">Revealed bids</h2>
-        {bids.map((bid) => (
-        <div
-        key={bid.id}
-        className="bg-app-surface border border-app-border rounded-card p-3 mb-2 flex justify-between"
-        >
-        <span className="text-app-text">{bid.alias}</span>
-        <span className="text-gold-accent font-bold">{bid.amount}</span>
-        </div>
-        ))}
-        </div>
-        )}
-
-        {/* si la subasta ya cerro, muestro el resultado */}
-        {auction.status === "closed" && (
-          <p className="text-gold-accent mt-2">Winning bid: {auction.winningBid}</p>
-        )}
-        {auction.status === "cancelled" && (
-          <p className="text-blood-accent mt-2">
-            Cancelled: there was no unique bid.
-          </p>
-        )}
-        {/* cerrar la subasta, solo el creador o el head haunter de la casa */}
-        {auction.status === "open" && currentUser && (auction.createdBy === currentUser.id ||auctionHouse.members.find(
-          (m) => m.userId === currentUser.id && m.role === "HeadHaunter")) && (<div className="mt-8 pt-6 border-t border-app-border">
-      <button
-        onClick={() => {
-          const mensaje = closeAuction(auction.id);
-          if (mensaje) setBidError(mensaje);
-        }}
-        className="bg-blood-accent hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-button">
-        Close auction
-      </button>
-      <p className="text-app-muted text-sm mt-2">
-        Reveals all bids, applies the curse and resolves the bets.
-      </p>
-      </div>
-      )}
-      {auction.status === "open" && currentUser && (
-      <div className="mt-8">
-      <h2 className="text-2xl font-bold text-app-text mb-3">Side bets</h2>
-
-      {myBet && (
-       <p className="text-app-text">
-        You bet {myBet.amount} on{" "}
-        <span className="text-ember-accent">{myBet.predictedAlias}</span>.
-       </p>
-       )}
-
-       {!myBet && (
-        <div>
-         <select
-          value={betAlias}
-          onChange={(e) => setBetAlias(e.target.value)}
-          className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text">
-          <option value="">Pick an alias</option>
-          {aliases.map((alias) => (
-            <option key={alias} value={alias}>{alias}</option>
+        {/* las pujas, con la subasta abierta solo se ven los alias, al cerrar se ven los montos */}
+        <section className="mt-8">
+          <h2 className="text-2xl font-bold text-app-text mb-3">{abierta ? "Who is bidding" : "Revealed bids"}</h2>
+          {pujas.length === 0 && <p className="text-app-muted">No bids yet.</p>}
+          {pujas.map((puja) => (
+            <div
+              key={puja._id}
+              className={
+                "bg-app-surface border rounded-card p-3 mb-2 flex justify-between " +
+                (!abierta && puja.amount === subasta.winningBid ? "border-gold-accent" : "border-app-border")
+              }
+            >
+              <span className="text-app-text">
+                {puja.alias}
+                {puja.alias === miPuja?.alias && <span className="text-app-muted"> (you)</span>}
+              </span>
+              {!abierta && <span className="text-gold-accent font-bold">{puja.amount}</span>}
+            </div>
           ))}
-         </select>
+          {subasta.status === "closed" && (
+            <p className="text-gold-accent mt-2">Winning bid: {subasta.winningBid}</p>
+          )}
+          {subasta.status === "cancelled" && (
+            <p className="text-blood-accent mt-2">Cancelled: there was no unique bid.</p>
+          )}
+        </section>
 
-        <select
-          value={betAmount}
-          onChange={(e) => setBetAmount(e.target.value)}
-          className="border border-app-border rounded-button px-3 py-2 mr-2 bg-app-bg text-app-text">
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-        </select>
+        {/* apuestas paralelas, requisitos 16 al 19 */}
+        <section className="mt-8">
+          <h2 className="text-2xl font-bold text-app-text mb-3">Side bets</h2>
+          {abierta && !apuestasAbiertas && (
+            <p className="text-app-muted">Betting closed one hour before the end of the auction.</p>
+          )}
+          {apuestasAbiertas && miembro && (
+            <form onSubmit={handleApostar} className="flex flex-wrap gap-2 mb-4">
+              <select
+                value={aliasApuesta}
+                onChange={(e) => setAliasApuesta(e.target.value)}
+                className="border border-app-border rounded-button px-3 py-2 bg-app-bg text-app-text"
+              >
+                <option value="">Pick an alias</option>
+                {aliasDeOtros.map((alias) => (
+                  <option key={alias} value={alias}>
+                    {alias}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={montoApuesta}
+                onChange={(e) => setMontoApuesta(e.target.value)}
+                className="border border-app-border rounded-button px-3 py-2 bg-app-bg text-app-text"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+              <button
+                type="submit"
+                disabled={enviando}
+                className="bg-gold-accent hover:bg-yellow-600 disabled:opacity-60 text-black font-semibold px-4 py-2 rounded-button"
+              >
+                {enviando ? "Sending..." : "Bet"}
+              </button>
+            </form>
+          )}
+          {apuestas.length === 0 && <p className="text-app-muted">No bets yet.</p>}
+          {apuestas.map((apuesta) => (
+            <div
+              key={apuesta._id}
+              className="bg-app-surface border border-app-border rounded-card p-3 mb-2 flex justify-between"
+            >
+              <span className="text-app-text">
+                {apuesta.amount} on {apuesta.predictedAlias}
+              </span>
+              <span className="text-app-muted">
+                {apuesta.status}
+                {apuesta.status !== "pending" && " · pays " + apuesta.payout}
+              </span>
+            </div>
+          ))}
+        </section>
 
-        <button
-          onClick={handleBet}
-          className="bg-gold-accent hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-button">
-          Bet
-        </button>
-        {betError && <p className="text-blood-accent mt-2">{betError}</p>}
-        </div>
+        {/* cerrar la subasta, solo el creador o un admin */}
+        {abierta && (esCreador || isAdmin) && (
+          <section className="mt-8 pt-6 border-t border-app-border">
+            <button
+              onClick={handleCerrar}
+              disabled={enviando}
+              className="bg-blood-accent hover:bg-red-700 disabled:opacity-60 text-white font-semibold px-4 py-2 rounded-button"
+            >
+              Close auction
+            </button>
+            <p className="text-app-muted text-sm mt-2">Reveals all bids, applies the curse and resolves the bets.</p>
+          </section>
         )}
 
-      <p className="text-app-muted mt-3">{bets.length} bets placed</p>
-      </div>
-      )}
+        {/* borrar la subasta, solo lo ve el admin */}
+        {isAdmin && (
+          <section className="mt-6">
+            <button
+              onClick={handleEliminar}
+              disabled={enviando}
+              className="border border-blood-accent text-blood-accent hover:bg-blood-soft font-semibold px-4 py-2 rounded-button"
+            >
+              Delete auction
+            </button>
+          </section>
+        )}
       </main>
     </div>
   );
