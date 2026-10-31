@@ -52,11 +52,14 @@ function Home() {
           //en mongo el id se llama _id, ya no id como en los datos de prueba
           <Link key={casa._id} to={"/house/" + casa._id} className="block">
             <div className="bg-app-surface border border-app-border rounded-card shadow-card overflow-hidden mb-4 hover:shadow-card-hover transition-shadow">
-              <img
-                src={casa.coverImageUrl}
-                alt={casa.name}
-                className="w-full h-40 object-cover"
-              />
+              {/* la portada es opcional, si la casa no tiene no se dibuja la imagen rota */}
+              {casa.coverImageUrl && (
+                <img
+                  src={casa.coverImageUrl}
+                  alt={casa.name}
+                  className="w-full h-40 object-cover"
+                />
+              )}
               <div className="p-4">
                 <h2 className="text-xl font-bold text-app-text">{casa.name}</h2>
                 <p className="text-app-muted">{casa.description}</p>

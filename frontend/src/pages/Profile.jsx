@@ -72,7 +72,7 @@ function Profile() {
       <NavBar />
       <main className="container mx-auto px-4 py-8">
         <img
-          src={user.avatarUrl}
+          src={user.avatarUrl || "/images/pfp.jpeg"}
           alt={user.username}
           className="w-20 h-20 rounded-pill mb-3"
         />

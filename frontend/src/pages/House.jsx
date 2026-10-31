@@ -159,11 +159,13 @@ function House() {
     <div className="min-h-screen bg-app-bg transition-colors duration-300">
       <NavBar />
       <main className="container mx-auto px-4 py-8">
-        <img
-          src={casa.coverImageUrl}
-          alt={casa.name}
-          className="w-full h-48 object-cover rounded-card mb-4"
-        />
+        {casa.coverImageUrl && (
+          <img
+            src={casa.coverImageUrl}
+            alt={casa.name}
+            className="w-full h-48 object-cover rounded-card mb-4"
+          />
+        )}
         <h1 className="text-3xl font-bold text-app-text">{casa.name}</h1>
         <p className="text-app-muted mb-6">{casa.description}</p>
 
@@ -209,7 +211,8 @@ function House() {
                 key={miembro.userId}
                 className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex items-center gap-3"
               >
-                <img src={miembro.avatarUrl} alt="" className="w-10 h-10 rounded-pill" />
+                {/* quien se registra desde el front no tiene avatar, entonces se usa uno por defecto */}
+                <img src={miembro.avatarUrl || "/images/pfp.jpeg"} alt="" className="w-10 h-10 rounded-pill" />
                 <div>
                   <p className="text-app-text">{miembro.username}</p>
                   {/* los poltergeist se resaltan con otro color */}

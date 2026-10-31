@@ -47,7 +47,7 @@ La aplicacion queda en http://localhost:5173. Para usar el backend de Render en 
 src/
   services/    api.js con la instancia de Axios, y un servicio por recurso del backend
   store/       el store de Redux y authSlice con la sesion
-  components/  NavBar, PrivateRoute, AdminRoute, Loading, ErrorMessage, SuccessMessage, botones e inputs
+  components/  NavBar, PrivateRoute, AdminRoute, Loading, ErrorMessage, SuccessMessage, Badge y ButtonTheme
   pages/       una pantalla por ruta
   context/     ThemeContext para el modo oscuro
   utils/       mensajeError, que saca el mensaje de error que manda el backend
@@ -92,7 +92,7 @@ La logica vive en el backend y el front la muestra. Esta tabla dice en que pagin
 | 3 | Alias anonimo `Adjetivo_Numero` por subasta | `Auction` | `utils/alias.js` |
 | 4, 5 | Crear casas y unirse, con codigo si es privada | `CreateHouse`, `House` | `houseService.js` |
 | 6, 7 | Miembros con su nombre real y su rol | `House` | `houseService.js` |
-| 8, 9 | Objetos malditos y las 8 maldiciones | `CreateObject`, `EditObject`, `Curses` | `cursedObjectService.js`, `utils/curses.js` |
+| 8, 9 | Objetos malditos y las 8 maldiciones | `CreateObject`, `EditObject`, `CursesPage` | `cursedObjectService.js`, `utils/curses.js` |
 | 10 a 14 | Una puja secreta por usuario, gana la mas baja y unica, sin unica se cancela | `Auction` | `bidService.js`, `closeService.js` |
 | 15 | Duplicados pierden 5 y quedan Poltergeist 48 horas | `Auction`, `House` | `closeService.js`, `utils/membresia.js` |
 | 16 a 19 | Apuestas sobre alias, cierran 1 hora antes y pagan el triple | `Auction` | `betService.js`, `closeService.js` |

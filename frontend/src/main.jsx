@@ -4,7 +4,6 @@ import "./index.css";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
-import { AppProvider } from "./context/AppContext.jsx";
 import { Provider } from "react-redux";
 import { store } from "./store/index.js";
 
@@ -29,11 +28,9 @@ createRoot(document.getElementById("root")).render(
     {/* Provider le pasa el store de redux a toda la app */}
     <Provider store={store}>
       <BrowserRouter>
-        <AppProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </AppProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </BrowserRouter>
     </Provider>
   </StrictMode>,
