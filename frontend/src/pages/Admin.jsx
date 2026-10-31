@@ -83,7 +83,7 @@ function Admin() {
         {usuarios.map((usuario) => (
           <div
             key={usuario._id}
-            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center"
+            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center gap-3"
           >
             <div>
               <p className="text-app-text font-bold">{usuario.username}</p>
@@ -111,7 +111,7 @@ function Admin() {
         {subastas.map((subasta) => (
           <div
             key={subasta._id}
-            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center"
+            className="bg-app-surface border border-app-border rounded-card p-4 mb-3 flex justify-between items-center gap-3"
           >
             <div>
               <p className="text-app-text font-bold">Auction {subasta._id.slice(-6)}</p>

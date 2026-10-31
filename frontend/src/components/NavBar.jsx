@@ -59,7 +59,7 @@ function Navegacion() {
 
   return (
     <nav className="bg-blood-soft px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-card transition-colors duration-300">
-      <p className="text-4xl sm:text-6xl text-center text-blood-accent font-extrabold w-full tracking-wider">
+      <p className="text-3xl sm:text-6xl text-center text-blood-accent font-extrabold w-full tracking-wider">
         PHANTOMBIDS
       </p>
 
